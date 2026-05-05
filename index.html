@@ -17,8 +17,10 @@
         .sync-bar.salvo { color: #a5d6a7; }
         .sync-bar.erro { color: #ef9a9a; }
 
-        .pagina { display: none; padding: 20px; }
-        .pagina.ativa { display: block; }
+        .pagina { display: none; padding: 20px; height: calc(100vh - 48px); overflow-y: auto; box-sizing: border-box; }
+        .pagina.ativa { display: flex; flex-direction: column; }
+        .table-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+        .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; }
 
         .dashboard { display: flex; gap: 14px; margin-bottom: 25px; flex-wrap: wrap; }
         .stat-card { flex: 1; min-width: 140px; background: var(--white); padding: 14px 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; border-top: 4px solid var(--primary); }
@@ -34,7 +36,7 @@
 
         .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; }
-        th { background-color: var(--primary); color: white; padding: 10px 5px; border: 1px solid #34495e; font-size: 10px; }
+        th { background-color: var(--primary); color: white; padding: 10px 5px; border: 1px solid #34495e; font-size: 10px; position: sticky; top: 0; z-index: 10; }
         td { border: 1px solid #ddd; padding: 4px; text-align: center; vertical-align: middle; }
 
         .dia-col { font-weight: bold; background: #eee; width: 56px; min-width: 56px; }
@@ -116,8 +118,10 @@
         <button class="btn-update" onclick="trocarMes('cx')">Atualizar Vista</button>
     </div>
     <div id="cx-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div class="table-wrapper">
     <div class="table-container">
         <table><thead><tr id="cx-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="cx-tabela-corpo"></tbody></table>
+    </div>
     </div>
 </div>
 
@@ -146,8 +150,10 @@
         <button class="btn-update" onclick="trocarMes('bc')">Atualizar Vista</button>
     </div>
     <div id="bc-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div class="table-wrapper">
     <div class="table-container">
         <table><thead><tr id="bc-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="bc-tabela-corpo"></tbody></table>
+    </div>
     </div>
 </div>
 
