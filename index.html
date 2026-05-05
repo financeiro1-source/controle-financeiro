@@ -210,6 +210,7 @@ window._salvarFirebase = function(prefixo) {
                 obsData:    Object.assign({}, cfg.obsData),
                 feriadoSet: Object.assign({}, cfg.feriadoSet)
             });
+            console.log('[Firebase] Salvo:', key, 'feriadoSet:', cfg.feriadoSet);
             setSyncStatus('✔ Salvo', 'salvo');
             setTimeout(() => setSyncStatus('', ''), 3000);
         } catch(e) {
@@ -229,36 +230,38 @@ window._carregarFirebase = async function(prefixo, ano, mes) {
         const data = snap.data();
         const cfg  = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
 
-        // Restaura obsData e feriadoSet ANTES de renderizar
+        // 1) Restaura obsData e feriadoSet na memória
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
-        // Re-renderiza o mês — agora já com feriadoSet restaurado,
-        // então dias com feriado geral aparecem corretamente como "Feriado"
+        // 2) Re-renderiza o mês com feriadoSet já preenchido
+        //    (isso faz os dias de feriado geral aparecerem como "Feriado" e
+        //     o checkbox ficar marcado automaticamente)
         window._renderizarMesExterno(prefixo);
 
+        // 3) Aguarda DOM atualizar e aplica selectVals + disabled
         setTimeout(() => {
-            // Aplica valores nos selects que ainda existem (células não-feriado)
             if (data.selectVals) {
                 Object.entries(data.selectVals).forEach(([id, val]) => {
                     const el = document.getElementById(id);
-                    if (el) el.value = val;
+                    if (el && !el.disabled) el.value = val;
                 });
             }
-            // Restaura disabled
             if (data.disabledIds) {
                 data.disabledIds.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.disabled = true;
+                    if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
                 });
             }
-            // Reaplicar estilos visuais
+
+            // 4) Reaplicar cores e opacidades
             window._reaplicarEstados(prefixo);
+
             setSyncStatus('✔ Carregado', 'salvo');
             setTimeout(() => setSyncStatus('', ''), 3000);
-        }, 150);
+        }, 300);
     } catch(e) {
         setSyncStatus('✖ Erro ao carregar', 'erro');
         console.error(e);
