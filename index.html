@@ -229,13 +229,18 @@ window._carregarFirebase = async function(prefixo, ano, mes) {
         const data = snap.data();
         const cfg  = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
 
+        // Restaura obsData e feriadoSet ANTES de renderizar
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
+        // Re-renderiza o mês — agora já com feriadoSet restaurado,
+        // então dias com feriado geral aparecem corretamente como "Feriado"
+        window._renderizarMesExterno(prefixo);
+
         setTimeout(() => {
-            // Aplica valores nos selects
+            // Aplica valores nos selects que ainda existem (células não-feriado)
             if (data.selectVals) {
                 Object.entries(data.selectVals).forEach(([id, val]) => {
                     const el = document.getElementById(id);
@@ -522,6 +527,12 @@ function trocarMes(p) {
     const mes=parseInt(document.getElementById(p+'-mes').value);
     if (window._carregarFirebase) window._carregarFirebase(p, ano, mes);
 }
+
+// Expõe renderizarMes para o módulo Firebase poder chamar após restaurar feriadoSet
+window._renderizarMesExterno = function(p) {
+    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    renderizarMes(cfg);
+};
 
 window.cfgCaixa = {
     prefixo:'cx', pulaFimDeSemana:false,
