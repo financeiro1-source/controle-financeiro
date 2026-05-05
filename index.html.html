@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Controle Financeiro</title>
+    <style>
+        :root { --primary: #2c3e50; --bg: #f4f7f6; --yellow-pendente: #fff176; --green-conferido: #a5d6a7; --white: #ffffff; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 11px; }
+
+        .nav-bar { background-color: var(--primary); display: flex; align-items: center; padding: 0 20px; box-shadow: 0 3px 8px rgba(0,0,0,0.25); position: sticky; top: 0; z-index: 5000; }
+        .nav-title { color: #fff; font-size: 13px; font-weight: bold; padding: 14px 20px 14px 0; border-right: 1px solid rgba(255,255,255,0.2); margin-right: 10px; }
+        .nav-btn { color: rgba(255,255,255,0.7); background: none; border: none; padding: 14px 20px; font-size: 12px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.2s, border-color 0.2s; }
+        .nav-btn:hover { color: #fff; }
+        .nav-btn.ativo { color: #fff; border-bottom-color: #4fc3f7; }
+        .sync-bar { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: auto; }
+        .sync-bar.salvando { color: #ffd54f; }
+        .sync-bar.salvo { color: #a5d6a7; }
+        .sync-bar.erro { color: #ef9a9a; }
+
+        .pagina { display: none; padding: 20px; }
+        .pagina.ativa { display: block; }
+
+        .dashboard { display: flex; gap: 14px; margin-bottom: 25px; flex-wrap: wrap; }
+        .stat-card { flex: 1; min-width: 140px; background: var(--white); padding: 14px 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; border-top: 4px solid var(--primary); }
+        .stat-card.pendente { border-top-color: #fbc02d; }
+        .stat-card.tes-card { border-top-color: #e53935; }
+        .stat-card.cri-card { border-top-color: #1565c0; }
+        .stat-card.sim-card { border-top-color: #6a1b9a; }
+        .stat-value { font-size: 26px; font-weight: bold; display: block; margin-top: 5px; }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; line-height: 1.3; }
+
+        .filters { background: var(--white); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; }
+
+        .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: var(--primary); color: white; padding: 10px 5px; border: 1px solid #34495e; font-size: 10px; }
+        td { border: 1px solid #ddd; padding: 4px; text-align: center; vertical-align: middle; }
+
+        .dia-col { font-weight: bold; background: #eee; width: 56px; min-width: 56px; }
+        .dia-inner { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .dia-num { font-size: 13px; font-weight: bold; }
+        .dia-semana { font-size: 8px; color: #888; }
+        .feriado-wrap { display: flex; align-items: center; gap: 2px; font-size: 8px; color: #c62828; cursor: pointer; user-select: none; }
+
+        .bg-feriado { background-color: #ffcdd2 !important; }
+        .inativo-label { font-size: 9px; color: #b71c1c; font-style: italic; padding: 6px 2px; }
+
+        .caixa-cell { display: flex; flex-direction: column; gap: 3px; }
+        .conferencias { display: flex; flex-direction: column; gap: 2px; }
+        .conf-row { display: flex; align-items: center; gap: 4px; font-size: 9px; }
+        .conf-label { font-weight: bold; width: 58px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #444; flex-shrink: 0; }
+        .conf-sel { font-size: 9px; border: 1px solid #ccc; border-radius: 3px; padding: 1px 2px; flex: 1; min-width: 0; }
+
+        .obs-area { position: relative; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+        .btn-obs { font-size: 8px; background: #e8f0fe; border: 1px solid #aac4f0; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: #2c5fa8; white-space: nowrap; }
+        .btn-obs:hover { background: #d0e2ff; }
+        .has-obs { background: #fff3cd; border-color: #ffc107; color: #7a5200; }
+
+        .obs-tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: #2c3e50; color: #fff; padding: 6px 8px; border-radius: 5px; font-size: 10px; min-width: 150px; max-width: 220px; word-wrap: break-word; z-index: 9999; white-space: pre-wrap; line-height: 1.4; box-shadow: 0 3px 8px rgba(0,0,0,0.3); pointer-events: none; display: none; }
+        .obs-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #2c3e50; }
+        .obs-area:hover .obs-tooltip { display: block; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 10000; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: #fff; border-radius: 10px; padding: 22px 24px; width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 12px; }
+        .modal-title { font-size: 13px; font-weight: bold; color: var(--primary); margin: 0; }
+        .modal-textarea { width: 100%; height: 100px; font-size: 12px; border: 1px solid #ccc; border-radius: 5px; padding: 8px; box-sizing: border-box; resize: vertical; font-family: inherit; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel { background: #eee; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .btn-save { background: var(--primary); color: #fff; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-save:hover { background: #1a252f; }
+
+        .bg-pendente  { background-color: var(--yellow-pendente) !important; }
+        .bg-conferido { background-color: var(--green-conferido) !important; }
+        .btn-update { background-color: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .aviso-periodo { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; padding: 8px 14px; font-size: 11px; color: #1565c0; margin-bottom: 14px; }
+
+        .data-atual-bar { background: var(--white); border-radius: 8px; padding: 10px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 12px; color: #333; }
+        .data-atual-bar .data-label { font-weight: bold; color: var(--primary); }
+        .data-atual-bar .data-valor { font-size: 14px; font-weight: bold; color: #1565c0; }
+        .data-atual-bar .data-ref { font-size: 10px; color: #888; border-left: 1px solid #ddd; padding-left: 12px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<nav class="nav-bar">
+    <span class="nav-title">💼 Controle Financeiro</span>
+    <button class="nav-btn ativo" onclick="mudarPagina('caixa')" id="nav-caixa">🏧 Caixa</button>
+    <button class="nav-btn" onclick="mudarPagina('conciliacao')" id="nav-conciliacao">🏦 Conciliação Bancária</button>
+    <span class="sync-bar" id="sync-status"></span>
+</nav>
+
+<!-- CAIXA -->
+<div class="pagina ativa" id="pag-caixa">
+    <div class="data-atual-bar">
+        <span class="data-label">📅 Data atual:</span>
+        <span class="data-valor" id="cx-data-hoje"></span>
+        <span class="data-ref" id="cx-data-ref-texto"></span>
+    </div>
+    <div class="dashboard">
+        <div class="stat-card pendente"><span class="stat-label">Caixas Pendenciados</span><span class="stat-value" id="cx-count-pendentes">0</span></div>
+        <div class="stat-card tes-card"><span class="stat-label">Parados c/<br>Tesoureiro</span><span class="stat-value" id="cx-count-tes">0</span></div>
+        <div class="stat-card cri-card"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="cx-count-cri">0</span></div>
+        <div class="stat-card sim-card"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="cx-count-sim">0</span></div>
+    </div>
+    <div class="filters">
+        <div><strong>Ano:</strong> <select id="cx-ano" onchange="trocarMes('cx')"></select></div>
+        <div><strong>Mês:</strong>
+            <select id="cx-mes" onchange="trocarMes('cx')">
+                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
+                <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
+                <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+        </div>
+        <button class="btn-update" onclick="trocarMes('cx')">Atualizar Vista</button>
+    </div>
+    <div id="cx-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div class="table-container">
+        <table><thead><tr id="cx-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="cx-tabela-corpo"></tbody></table>
+    </div>
+</div>
+
+<!-- CONCILIAÇÃO -->
+<div class="pagina" id="pag-conciliacao">
+    <div class="data-atual-bar">
+        <span class="data-label">📅 Data atual:</span>
+        <span class="data-valor" id="bc-data-hoje"></span>
+        <span class="data-ref" id="bc-data-ref-texto"></span>
+    </div>
+    <div class="dashboard">
+        <div class="stat-card pendente"><span class="stat-label">Bancos Pendenciados</span><span class="stat-value" id="bc-count-pendentes">0</span></div>
+        <div class="stat-card tes-card"><span class="stat-label">Parados c/<br>Contas a Receber</span><span class="stat-value" id="bc-count-tes">0</span></div>
+        <div class="stat-card cri-card"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="bc-count-cri">0</span></div>
+        <div class="stat-card sim-card"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="bc-count-sim">0</span></div>
+    </div>
+    <div class="filters">
+        <div><strong>Ano:</strong> <select id="bc-ano" onchange="trocarMes('bc')"></select></div>
+        <div><strong>Mês:</strong>
+            <select id="bc-mes" onchange="trocarMes('bc')">
+                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
+                <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
+                <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+        </div>
+        <button class="btn-update" onclick="trocarMes('bc')">Atualizar Vista</button>
+    </div>
+    <div id="bc-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div class="table-container">
+        <table><thead><tr id="bc-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="bc-tabela-corpo"></tbody></table>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-obs">
+    <div class="modal-box">
+        <p class="modal-title" id="modal-titulo">Observação</p>
+        <textarea class="modal-textarea" id="modal-texto" placeholder="Digite a observação aqui..."></textarea>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-save" onclick="salvarObs()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- FIREBASE (module) -->
+<script type="module">
+import { initializeApp }                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp({
+    apiKey:            "AIzaSyCbZScsqb9Ml1UyuDCSrbQf8gyIQDg1_Q",
+    authDomain:        "controles-2e105.firebaseapp.com",
+    projectId:         "controles-2e105",
+    storageBucket:     "controles-2e105.firebasestorage.app",
+    messagingSenderId: "633125691715",
+    appId:             "1:633125691715:web:979ba8ca9b61fc6b6d4ff6"
+});
+const db = getFirestore(app);
+
+function setSyncStatus(msg, cls) {
+    const el = document.getElementById('sync-status');
+    el.textContent = msg;
+    el.className = 'sync-bar ' + cls;
+}
+
+let saveTimer = null;
+window._salvarFirebase = function(prefixo) {
+    clearTimeout(saveTimer);
+    setSyncStatus('💾 Salvando...', 'salvando');
+    saveTimer = setTimeout(async () => {
+        try {
+            const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+            const ano = parseInt(document.getElementById(prefixo + '-ano').value);
+            const mes = parseInt(document.getElementById(prefixo + '-mes').value);
+            const key = prefixo + '_' + ano + '_' + String(mes).padStart(2, '0');
+
+            const selectVals = {};
+            const disabledIds = [];
+            document.querySelectorAll('select[id^="sel_"]').forEach(el => {
+                if (el.id.endsWith('_' + prefixo)) {
+                    selectVals[el.id] = el.value;
+                    if (el.disabled) disabledIds.push(el.id);
+                }
+            });
+
+            await setDoc(doc(db, 'controle', key), {
+                selectVals,
+                disabledIds,
+                obsData:    Object.assign({}, cfg.obsData),
+                feriadoSet: Object.assign({}, cfg.feriadoSet)
+            });
+            setSyncStatus('✔ Salvo', 'salvo');
+            setTimeout(() => setSyncStatus('', ''), 3000);
+        } catch(e) {
+            setSyncStatus('✖ Erro ao salvar', 'erro');
+            console.error(e);
+        }
+    }, 800);
+};
+
+window._carregarFirebase = async function(prefixo, ano, mes) {
+    setSyncStatus('⏳ Carregando...', 'salvando');
+    try {
+        const key  = prefixo + '_' + ano + '_' + String(mes).padStart(2, '0');
+        const snap = await getDoc(doc(db, 'controle', key));
+        if (!snap.exists()) { setSyncStatus('', ''); return; }
+
+        const data = snap.data();
+        const cfg  = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+
+        Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
+        Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
+        if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
+        if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
+
+        setTimeout(() => {
+            // Aplica valores nos selects
+            if (data.selectVals) {
+                Object.entries(data.selectVals).forEach(([id, val]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val;
+                });
+            }
+            // Restaura disabled
+            if (data.disabledIds) {
+                data.disabledIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                });
+            }
+            // Reaplicar estilos visuais
+            window._reaplicarEstados(prefixo);
+            setSyncStatus('✔ Carregado', 'salvo');
+            setTimeout(() => setSyncStatus('', ''), 3000);
+        }, 150);
+    } catch(e) {
+        setSyncStatus('✖ Erro ao carregar', 'erro');
+        console.error(e);
+    }
+};
+
+window._reaplicarEstados = function(prefixo) {
+    const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+    const ano = parseInt(document.getElementById(prefixo + '-ano').value);
+    const mes = parseInt(document.getElementById(prefixo + '-mes').value);
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+
+    for (let d = 1; d <= totalDias; d++) {
+        cfg.caixas.forEach(c => {
+            const idBase = d + '_' + c.replace(/ /g, '_') + '_' + mes + '_' + ano;
+            window.atualizar(idBase, prefixo);
+        });
+    }
+    // Reaplicar obs buttons
+    Object.entries(cfg.obsData).forEach(([idBase, texto]) => {
+        if (!texto) return;
+        const area = document.getElementById('obsarea_' + idBase + '_' + prefixo);
+        if (!area) return;
+        const btn = area.querySelector('.btn-obs');
+        if (btn) { btn.classList.add('has-obs'); btn.innerText = '📝 Ver obs.'; }
+        let tt = area.querySelector('.obs-tooltip');
+        if (!tt) { tt = document.createElement('div'); tt.className = 'obs-tooltip'; area.appendChild(tt); }
+        tt.innerText = texto;
+    });
+};
+
+window._firebaseReady = true;
+</script>
+
+<!-- LÓGICA PRINCIPAL -->
+<script>
+const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const DIAS_EXT    = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+
+let modalAtualId = null, modalObsDataRef = null, modalPrefixo = null;
+
+function mudarPagina(p) {
+    document.querySelectorAll('.pagina').forEach(el => el.classList.remove('ativa'));
+    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('ativo'));
+    document.getElementById('pag-' + p).classList.add('ativa');
+    document.getElementById('nav-' + p).classList.add('ativo');
+}
+
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function atualizarDataAtual(p) {
+    const hoje = new Date(), ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-1);
+    document.getElementById(p+'-data-hoje').innerText =
+        String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()+' — '+DIAS_EXT[hoje.getDay()];
+    document.getElementById(p+'-data-ref-texto').innerHTML =
+        'Dashboard contabiliza pendências<br>até o dia anterior: <strong>'+
+        String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear()+'</strong>';
+}
+
+function buildCaixaHTML(idBase, obsData, conferentes, p) {
+    const confHTML = conferentes.map(conf => `
+        <div class="conf-row" id="confrow_${conf.key}_${idBase}_${p}">
+            <span class="conf-label">${conf.label}:</span>
+            <select class="conf-sel" id="sel_${conf.key}_${idBase}_${p}" onchange="atualizar('${idBase}','${p}')">
+                <option value="AGU">— Aguardando</option>
+                <option value="CON">✔ Conferido</option>
+                <option value="PEN">⚠ Pendenciado</option>
+                <option value="FER">🔴 Feriado</option>
+            </select>
+        </div>`).join('');
+    const temObs = !!obsData[idBase], obs = temObs ? obsData[idBase] : '';
+    return `<div class="caixa-cell"><div class="conferencias">${confHTML}</div>
+        <div class="obs-area" id="obsarea_${idBase}_${p}">
+            <button class="btn-obs ${temObs?'has-obs':''}" onclick="abrirModal('${idBase}','${p}')">
+                ${temObs?'📝 Ver obs.':'+ Adicionar obs.'}</button>
+            ${temObs?`<div class="obs-tooltip">${escapeHtml(obs)}</div>`:''}
+        </div></div>`;
+}
+
+function renderizarMes(cfg) {
+    const { prefixo:p, caixas, conferentes, obsData, feriadoSet, pulaFimDeSemana } = cfg;
+    const ano = parseInt(document.getElementById(p+'-ano').value);
+    const mes = parseInt(document.getElementById(p+'-mes').value);
+    const corpo = document.getElementById(p+'-tabela-corpo');
+    corpo.innerHTML = '';
+    document.getElementById(p+'-aviso-periodo').style.display =
+        ((ano > 2026)||(ano===2026&&mes>=4)) ? 'none' : '';
+
+    for (let d = 1; d <= new Date(ano,mes+1,0).getDate(); d++) {
+        const dataObj = new Date(ano,mes,d), diaSem = dataObj.getDay();
+        if (pulaFimDeSemana) { if (diaSem===0||diaSem===6) continue; }
+        else { if (diaSem===0) continue; }
+
+        const chFer = d+'_'+mes+'_'+ano, eFer = !!feriadoSet[chFer];
+        const tr = document.createElement('tr');
+
+        const diaCell = document.createElement('td');
+        diaCell.className = 'dia-col' + (eFer?' bg-feriado':'');
+        diaCell.innerHTML = `<div class="dia-inner">
+            <span class="dia-num">${d}</span>
+            <span class="dia-semana">${DIAS_SEMANA[diaSem]}</span>
+            <label class="feriado-wrap">
+                <input type="checkbox" class="feriado-cb" id="fer_${chFer}_${p}"
+                    ${eFer?'checked':''} onchange="toggleFeriado('${chFer}',${d},${mes},${ano},'${p}')">
+                Feriado
+            </label></div>`;
+        tr.appendChild(diaCell);
+
+        caixas.forEach(c => {
+            const idBase = d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
+            const td = document.createElement('td');
+            td.id = 'td_'+idBase+'_'+p;
+            if (eFer) { td.classList.add('bg-feriado'); td.innerHTML = '<span class="inativo-label">Feriado</span>'; }
+            else td.innerHTML = buildCaixaHTML(idBase, obsData, conferentes, p);
+            tr.appendChild(td);
+        });
+        corpo.appendChild(tr);
+    }
+    atualizarDashboard(cfg);
+}
+
+window.atualizar = function(idBase, p) {
+    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const td  = document.getElementById('td_'+idBase+'_'+p);
+    if (!td) return;
+    td.classList.remove('bg-pendente','bg-conferido','bg-feriado');
+
+    let todoConferido=true, algumPendente=false, todoFeriado=true;
+    const pc = cfg.conferentes[0];
+    const sp = document.getElementById('sel_'+pc.key+'_'+idBase+'_'+p);
+    const primeiroFer = sp && sp.value==='FER';
+
+    cfg.conferentes.forEach(conf => {
+        const sel = document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+        const row = document.getElementById('confrow_'+conf.key+'_'+idBase+'_'+p);
+        const isPrimeiro = conf.key===pc.key;
+        if (!sel) return;
+
+        if (primeiroFer && !isPrimeiro) {
+            sel.value='FER'; sel.disabled=true;
+            if (row) row.style.opacity='0.35';
+            sel.style.background='#ffcdd2';
+        } else if (!primeiroFer && !isPrimeiro) {
+            sel.disabled=false;
+            if (sel.value==='FER') sel.value='AGU';
+        }
+
+        if (sel.value==='FER') {
+            if (row) row.style.opacity='0.35';
+            sel.style.background='#ffcdd2';
+        } else {
+            if (row) row.style.opacity='';
+            sel.style.background='';
+            todoFeriado=false;
+        }
+        if (sel.value==='PEN') algumPendente=true;
+        if (sel.value!=='CON'&&sel.value!=='FER') todoConferido=false;
+    });
+
+    if (todoFeriado) td.classList.add('bg-feriado');
+    else if (todoConferido) td.classList.add('bg-conferido');
+    else if (algumPendente) td.classList.add('bg-pendente');
+
+    atualizarDashboard(cfg);
+    if (window._salvarFirebase) window._salvarFirebase(p);
+};
+
+function toggleFeriado(chFer, d, mes, ano, p) {
+    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const cb  = document.getElementById('fer_'+chFer+'_'+p);
+    cfg.feriadoSet[chFer] = cb.checked;
+    const diaCell = cb.closest('td');
+    if (cb.checked) diaCell.classList.add('bg-feriado');
+    else diaCell.classList.remove('bg-feriado');
+
+    cfg.caixas.forEach(c => {
+        const idBase = d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
+        const td = document.getElementById('td_'+idBase+'_'+p);
+        if (!td) return;
+        td.className='';
+        if (cb.checked) { td.classList.add('bg-feriado'); td.innerHTML='<span class="inativo-label">Feriado</span>'; }
+        else td.innerHTML = buildCaixaHTML(idBase, cfg.obsData, cfg.conferentes, p);
+    });
+    atualizarDashboard(cfg);
+    if (window._salvarFirebase) window._salvarFirebase(p);
+}
+
+function atualizarDashboard(cfg) {
+    const { prefixo:p, caixas, conferentes, feriadoSet, pulaFimDeSemana } = cfg;
+    const ano = parseInt(document.getElementById(p+'-ano').value);
+    const mes = parseInt(document.getElementById(p+'-mes').value);
+    const valido = (ano>2026)||(ano===2026&&mes>=4);
+
+    if (!valido) {
+        document.getElementById(p+'-count-pendentes').innerText='—';
+        conferentes.forEach(c => { const el=document.getElementById(p+'-count-'+c.key); if(el) el.innerText='—'; });
+        return;
+    }
+
+    const hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
+    let pen=0; const parado={};
+    conferentes.forEach(c => parado[c.key]=0);
+
+    for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
+        const dl=new Date(ano,mes,d);
+        if (dl>ontem) continue;
+        const ds=dl.getDay();
+        if (pulaFimDeSemana) { if (ds===0||ds===6) continue; }
+        else { if (ds===0) continue; }
+        if (feriadoSet[d+'_'+mes+'_'+ano]) continue;
+
+        caixas.forEach(c => {
+            const idBase=d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
+            let ap=false;
+            conferentes.forEach(conf => {
+                const sel=document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+                if (!sel) { parado[conf.key]++; return; }
+                if (sel.value==='FER') return;
+                if (sel.value==='PEN') ap=true;
+                if (sel.value==='AGU') parado[conf.key]++;
+            });
+            if (ap) pen++;
+        });
+    }
+    document.getElementById(p+'-count-pendentes').innerText=pen;
+    conferentes.forEach(c => { document.getElementById(p+'-count-'+c.key).innerText=parado[c.key]; });
+}
+
+function abrirModal(idBase, p) {
+    modalAtualId=idBase; modalPrefixo=p;
+    modalObsDataRef=(p==='cx'?cfgCaixa:cfgConciliacao).obsData;
+    const pt=idBase.split('_');
+    document.getElementById('modal-titulo').innerText='Observação — Dia '+pt[0]+' · '+pt[1];
+    document.getElementById('modal-texto').value=modalObsDataRef[idBase]||'';
+    document.getElementById('modal-obs').classList.add('active');
+    setTimeout(()=>document.getElementById('modal-texto').focus(),100);
+}
+function fecharModal() { document.getElementById('modal-obs').classList.remove('active'); modalAtualId=null; }
+function salvarObs() {
+    if (!modalAtualId) return;
+    const texto=document.getElementById('modal-texto').value.trim();
+    modalObsDataRef[modalAtualId]=texto;
+    const area=document.getElementById('obsarea_'+modalAtualId+'_'+modalPrefixo);
+    if (area) {
+        const btn=area.querySelector('.btn-obs'); let tt=area.querySelector('.obs-tooltip');
+        if (texto) {
+            btn.classList.add('has-obs'); btn.innerText='📝 Ver obs.';
+            if (!tt) { tt=document.createElement('div'); tt.className='obs-tooltip'; area.appendChild(tt); }
+            tt.innerText=texto;
+        } else {
+            btn.classList.remove('has-obs'); btn.innerText='+ Adicionar obs.';
+            if (tt) tt.remove();
+        }
+    }
+    if (window._salvarFirebase) window._salvarFirebase(modalPrefixo);
+    fecharModal();
+}
+document.getElementById('modal-obs').addEventListener('click', function(e){ if(e.target===this) fecharModal(); });
+
+function trocarMes(p) {
+    const cfg=p==='cx'?cfgCaixa:cfgConciliacao;
+    Object.keys(cfg.obsData).forEach(k=>delete cfg.obsData[k]);
+    Object.keys(cfg.feriadoSet).forEach(k=>delete cfg.feriadoSet[k]);
+    renderizarMes(cfg);
+    const ano=parseInt(document.getElementById(p+'-ano').value);
+    const mes=parseInt(document.getElementById(p+'-mes').value);
+    if (window._carregarFirebase) window._carregarFirebase(p, ano, mes);
+}
+
+window.cfgCaixa = {
+    prefixo:'cx', pulaFimDeSemana:false,
+    caixas:["GPI","ARG","SLZ","PA SLZ","ITZ","THE","BLS"],
+    conferentes:[{key:"tes",label:"Tesoureiro"},{key:"cri",label:"Cristiano"},{key:"sim",label:"Simone"}],
+    obsData:{}, feriadoSet:{}
+};
+window.cfgConciliacao = {
+    prefixo:'bc', pulaFimDeSemana:true,
+    caixas:["Bradesco","Santander","Brasil","Itaú","Sicredi","Basa","Nordeste","Aplicações"],
+    conferentes:[{key:"tes",label:"Contas a Receber"},{key:"cri",label:"Cristiano"},{key:"sim",label:"Simone"}],
+    obsData:{}, feriadoSet:{}
+};
+
+function inicializarModulo(cfg) {
+    const p=cfg.prefixo;
+    atualizarDataAtual(p);
+    setInterval(()=>atualizarDataAtual(p), 60000);
+
+    const anoSel=document.getElementById(p+'-ano'), anoAtual=new Date().getFullYear();
+    for (let i=2026;i<=2050;i++) {
+        const opt=document.createElement('option');
+        opt.value=i; opt.text=i;
+        if (i===anoAtual) opt.selected=true;
+        anoSel.appendChild(opt);
+    }
+    document.getElementById(p+'-mes').value=new Date().getMonth();
+
+    const hRow=document.getElementById(p+'-header-row');
+    cfg.caixas.forEach(c=>{ const th=document.createElement('th'); th.innerText=c; hRow.appendChild(th); });
+
+    renderizarMes(cfg);
+
+    // Aguarda Firebase inicializar e carrega dados
+    const ano=new Date().getFullYear(), mes=new Date().getMonth();
+    const t=setInterval(()=>{ if(window._carregarFirebase){ clearInterval(t); window._carregarFirebase(p,ano,mes); } },100);
+}
+
+inicializarModulo(window.cfgCaixa);
+inicializarModulo(window.cfgConciliacao);
+</script>
+</body>
+</html>
