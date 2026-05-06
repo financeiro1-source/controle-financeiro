@@ -4,90 +4,133 @@
     <meta charset="UTF-8">
     <title>Controle Financeiro</title>
     <style>
-        :root { --primary: #2c3e50; --bg: #f4f7f6; --yellow-pendente: #fff176; --green-conferido: #a5d6a7; --white: #ffffff; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 11px; }
+        :root { --primary: #2c3e50; --bg: #f4f7f6; --yellow-pendente: #fff176; --green-conferido: #a5d6a7; --white: #ffffff; --nav-h: 54px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 12px; }
 
-        .nav-bar { background-color: var(--primary); display: flex; align-items: center; padding: 0 20px; box-shadow: 0 3px 8px rgba(0,0,0,0.25); position: sticky; top: 0; z-index: 5000; }
-        .nav-title { color: #fff; font-size: 13px; font-weight: bold; padding: 14px 20px 14px 0; border-right: 1px solid rgba(255,255,255,0.2); margin-right: 10px; }
-        .nav-btn { color: rgba(255,255,255,0.7); background: none; border: none; padding: 14px 20px; font-size: 12px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.2s, border-color 0.2s; }
+        /* ── NAV ── */
+        .nav-bar { background-color: var(--primary); display: flex; align-items: center; padding: 0 16px; box-shadow: 0 3px 8px rgba(0,0,0,0.25); position: sticky; top: 0; z-index: 5000; height: var(--nav-h); }
+        .nav-title { color: #fff; font-size: 12px; font-weight: bold; padding-right: 16px; border-right: 1px solid rgba(255,255,255,0.2); margin-right: 8px; white-space: nowrap; }
+        .nav-btn { color: rgba(255,255,255,0.7); background: none; border: none; padding: 0 16px; height: var(--nav-h); font-size: 12px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.2s, border-color 0.2s; }
         .nav-btn:hover { color: #fff; }
         .nav-btn.ativo { color: #fff; border-bottom-color: #4fc3f7; }
-        .sync-bar { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: auto; }
+        .sync-bar { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: auto; white-space: nowrap; }
         .sync-bar.salvando { color: #ffd54f; }
-        .sync-bar.salvo { color: #a5d6a7; }
-        .sync-bar.erro { color: #ef9a9a; }
+        .sync-bar.salvo    { color: #a5d6a7; }
+        .sync-bar.erro     { color: #ef9a9a; }
 
-        .pagina { display: none; padding: 20px; height: calc(100vh - 48px); overflow-y: auto; box-sizing: border-box; }
+        /* ── PÁGINAS ── */
+        .pagina { display: none; padding: 10px 14px; height: calc(100vh - var(--nav-h)); overflow-y: auto; box-sizing: border-box; }
         .pagina.ativa { display: flex; flex-direction: column; }
-        .table-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
-        .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; }
 
-        .dashboard { display: flex; gap: 14px; margin-bottom: 25px; flex-wrap: wrap; }
-        .stat-card { flex: 1; min-width: 140px; background: var(--white); padding: 14px 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; border-top: 4px solid var(--primary); }
+        /* ── TOPO COMPACTO ── */
+        .topo-compacto { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+        .data-badge { background: var(--white); border-radius: 6px; padding: 5px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 11px; color: #333; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .data-badge strong { color: #1565c0; font-size: 12px; }
+        .filtros-inline { display: flex; align-items: center; gap: 8px; background: var(--white); border-radius: 6px; padding: 5px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 11px; }
+        .filtros-inline select { padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 11px; }
+
+        /* ── DASHBOARD COMPACTO ── */
+        .dashboard { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        .stat-card { flex: 1; min-width: 110px; background: var(--white); padding: 7px 8px; border-radius: 7px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); text-align: center; border-top: 3px solid var(--primary); cursor: pointer; transition: box-shadow 0.2s, transform 0.1s; }
+        .stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(-1px); }
         .stat-card.pendente { border-top-color: #fbc02d; }
         .stat-card.tes-card { border-top-color: #e53935; }
         .stat-card.cri-card { border-top-color: #1565c0; }
         .stat-card.sim-card { border-top-color: #6a1b9a; }
-        .stat-value { font-size: 26px; font-weight: bold; display: block; margin-top: 5px; }
-        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; line-height: 1.3; }
+        .stat-value { font-size: 22px; font-weight: bold; display: block; margin-top: 2px; }
+        .stat-label { font-size: 8px; color: #666; text-transform: uppercase; font-weight: bold; line-height: 1.3; }
 
-        .filters { background: var(--white); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; }
-
-        .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        /* ── TABELA ── */
+        .table-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+        .table-container { background: var(--white); border-radius: 8px; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex: 1; }
         table { width: 100%; border-collapse: collapse; }
-        th { background-color: var(--primary); color: white; padding: 10px 5px; border: 1px solid #34495e; font-size: 10px; position: sticky; top: 0; z-index: 10; }
+        th { background-color: var(--primary); color: white; padding: 9px 5px; border: 1px solid #34495e; font-size: 11px; position: sticky; top: 0; z-index: 10; }
         td { border: 1px solid #ddd; padding: 4px; text-align: center; vertical-align: middle; }
 
-        .dia-col { font-weight: bold; background: #eee; width: 56px; min-width: 56px; }
-        .dia-inner { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-        .dia-num { font-size: 13px; font-weight: bold; }
-        .dia-semana { font-size: 8px; color: #888; }
+        /* ── DIA ── */
+        .dia-col { font-weight: bold; background: #eee; width: 58px; min-width: 58px; }
+        .dia-inner { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .dia-num { font-size: 14px; font-weight: bold; }
+        .dia-semana { font-size: 9px; color: #888; }
         .feriado-wrap { display: flex; align-items: center; gap: 2px; font-size: 8px; color: #c62828; cursor: pointer; user-select: none; }
 
+        /* ── FERIADO ── */
         .bg-feriado { background-color: #ffcdd2 !important; }
-        .inativo-label { font-size: 9px; color: #b71c1c; font-style: italic; padding: 6px 2px; }
+        .inativo-label { font-size: 10px; color: #b71c1c; font-style: italic; padding: 6px 2px; }
 
+        /* ── CÉLULA ── */
         .caixa-cell { display: flex; flex-direction: column; gap: 3px; }
-        .conferencias { display: flex; flex-direction: column; gap: 2px; }
-        .conf-row { display: flex; align-items: center; gap: 4px; font-size: 9px; }
-        .conf-label { font-weight: bold; width: 58px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #444; flex-shrink: 0; }
-        .conf-sel { font-size: 9px; border: 1px solid #ccc; border-radius: 3px; padding: 1px 2px; flex: 1; min-width: 0; }
+        .conferencias { display: flex; flex-direction: column; gap: 3px; }
+        .conf-row { display: flex; align-items: center; gap: 4px; font-size: 11px; border-radius: 3px; padding: 1px 3px; }
+        .conf-row.row-conferido { background-color: #c8e6c9; }
+        .conf-label { font-weight: bold; width: 62px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #444; flex-shrink: 0; font-size: 10px; }
+        .conf-sel { font-size: 10px; border: 1px solid #ccc; border-radius: 3px; padding: 2px 3px; flex: 1; min-width: 0; }
 
-        .obs-area { position: relative; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
-        .btn-obs { font-size: 8px; background: #e8f0fe; border: 1px solid #aac4f0; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: #2c5fa8; white-space: nowrap; }
+        /* ── OBS ── */
+        .obs-area { position: relative; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .btn-obs { font-size: 9px; background: #e8f0fe; border: 1px solid #aac4f0; border-radius: 3px; padding: 2px 6px; cursor: pointer; color: #2c5fa8; white-space: nowrap; }
         .btn-obs:hover { background: #d0e2ff; }
         .has-obs { background: #fff3cd; border-color: #ffc107; color: #7a5200; }
-
         .obs-tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: #2c3e50; color: #fff; padding: 6px 8px; border-radius: 5px; font-size: 10px; min-width: 150px; max-width: 220px; word-wrap: break-word; z-index: 9999; white-space: pre-wrap; line-height: 1.4; box-shadow: 0 3px 8px rgba(0,0,0,0.3); pointer-events: none; display: none; }
         .obs-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #2c3e50; }
         .obs-area:hover .obs-tooltip { display: block; }
 
+        /* ── CORES CÉLULA ── */
+        .bg-pendente  { background-color: var(--yellow-pendente) !important; }
+        .bg-conferido { background-color: var(--green-conferido) !important; }
+
+        /* ── MODAL OBS ── */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 10000; align-items: center; justify-content: center; }
         .modal-overlay.active { display: flex; }
-        .modal-box { background: #fff; border-radius: 10px; padding: 22px 24px; width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 12px; }
+        .modal-box { background: #fff; border-radius: 10px; padding: 22px 24px; width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 12px; }
         .modal-title { font-size: 13px; font-weight: bold; color: var(--primary); margin: 0; }
         .modal-textarea { width: 100%; height: 100px; font-size: 12px; border: 1px solid #ccc; border-radius: 5px; padding: 8px; box-sizing: border-box; resize: vertical; font-family: inherit; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
         .btn-cancel { background: #eee; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; }
-        .btn-save { background: var(--primary); color: #fff; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-save   { background: var(--primary); color: #fff; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn-save:hover { background: #1a252f; }
 
-        .bg-pendente  { background-color: var(--yellow-pendente) !important; }
-        .bg-conferido { background-color: var(--green-conferido) !important; }
-        .btn-update { background-color: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .aviso-periodo { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; padding: 8px 14px; font-size: 11px; color: #1565c0; margin-bottom: 14px; }
+        /* ── MODAL RELATÓRIO ── */
+        .relatorio-box { width: 520px; max-height: 80vh; overflow-y: auto; }
+        .relatorio-lista { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .relatorio-item { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 12px; text-align: left; font-size: 11px; }
+        .relatorio-item .ri-dia { font-weight: bold; color: var(--primary); font-size: 12px; }
+        .relatorio-item .ri-casa { color: #555; margin-left: 8px; }
+        .relatorio-item .ri-status { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+        .ri-status.pen { background: #fff176; color: #7a5200; }
+        .ri-status.agu { background: #e0e0e0; color: #444; }
+        .relatorio-item .ri-obs { margin-top: 4px; color: #888; font-style: italic; font-size: 10px; }
+        .relatorio-vazio { color: #999; font-size: 12px; text-align: center; padding: 20px; }
 
-        .data-atual-bar { background: var(--white); border-radius: 8px; padding: 10px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 12px; color: #333; }
-        .data-atual-bar .data-label { font-weight: bold; color: var(--primary); }
-        .data-atual-bar .data-valor { font-size: 14px; font-weight: bold; color: #1565c0; }
-        .data-atual-bar .data-ref { font-size: 10px; color: #888; border-left: 1px solid #ddd; padding-left: 12px; line-height: 1.5; }
+        .aviso-periodo { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #1565c0; margin-bottom: 8px; }
+
+        /* QUADRANTE CONFERÊNCIA */
+        .quadrante-wrap { background: var(--white); border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 8px 10px; min-width: 300px; }
+        .quadrante-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .quadrante-titulo { font-size: 10px; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-limpar { background: #e53935; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; font-size: 10px; font-weight: bold; cursor: pointer; }
+        .btn-limpar:hover { background: #c62828; }
+        .q-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .q-table tr { height: 22px; }
+        .q-label { background: #90caf9; color: #1a237e; font-weight: bold; padding: 2px 6px; border: 1px solid #bbb; white-space: nowrap; width: 72px; }
+        .q-label.sep { background: #e0e0e0; color: #555; }
+        .q-input { background: #a5d6a7; border: 1px solid #bbb; padding: 0; width: 110px; display: flex; align-items: center; }
+        .q-cifrao { font-size: 10px; font-weight: bold; color: #1b5e20; padding: 0 3px 0 5px; white-space: nowrap; flex-shrink: 0; }
+        .q-input input { width: 100%; border: none; background: transparent; font-size: 11px; text-align: right; font-family: inherit; outline: none; padding: 2px 4px 2px 0; }
+        .q-formula { background: #fff176; border: 1px solid #bbb; padding: 2px 6px; text-align: right; font-weight: bold; color: #333; width: 90px; white-space: nowrap; }
+        .q-adto-label { background: #fff176; border: 1px solid #bbb; padding: 2px 6px; text-align: center; font-weight: bold; color: #e53935; font-size: 10px; }
+        .q-empty { border: 1px solid #bbb; background: #fff; }
+        .q-vazio { border: none; background: transparent; width: 6px; }
     </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav class="nav-bar">
-    <span class="nav-title">💼 Controle Financeiro</span>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding-right:16px;border-right:1px solid rgba(255,255,255,0.2);margin-right:8px;">
+        <span class="nav-title" style="padding:0;border:none;margin:0">💼 Controle Financeiro</span>
+        <span id="nav-data-hoje" style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:1px"></span>
+    </div>
     <button class="nav-btn ativo" onclick="mudarPagina('caixa')" id="nav-caixa">🏧 Caixa</button>
     <button class="nav-btn" onclick="mudarPagina('conciliacao')" id="nav-conciliacao">🏦 Conciliação Bancária</button>
     <span class="sync-bar" id="sync-status"></span>
@@ -95,81 +138,151 @@
 
 <!-- CAIXA -->
 <div class="pagina ativa" id="pag-caixa">
-    <div class="data-atual-bar">
-        <span class="data-label">📅 Data atual:</span>
-        <span class="data-valor" id="cx-data-hoje"></span>
-        <span class="data-ref" id="cx-data-ref-texto"></span>
-    </div>
-    <div class="dashboard">
-        <div class="stat-card pendente"><span class="stat-label">Caixas Pendenciados</span><span class="stat-value" id="cx-count-pendentes">0</span></div>
-        <div class="stat-card tes-card"><span class="stat-label">Parados c/<br>Tesoureiro</span><span class="stat-value" id="cx-count-tes">0</span></div>
-        <div class="stat-card cri-card"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="cx-count-cri">0</span></div>
-        <div class="stat-card sim-card"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="cx-count-sim">0</span></div>
-    </div>
-    <div class="filters">
-        <div><strong>Ano:</strong> <select id="cx-ano" onchange="trocarMes('cx')"></select></div>
-        <div><strong>Mês:</strong>
-            <select id="cx-mes" onchange="trocarMes('cx')">
-                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
-                <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
-                <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
-            </select>
+    <div style="display:flex;gap:12px;margin-bottom:8px;align-items:flex-start;">
+
+        <!-- LADO ESQUERDO: filtros + cards 2x2 -->
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;">
+
+            <!-- Filtros -->
+            <div class="filtros-inline" style="align-self:flex-start;">
+                <strong>Ano:</strong> <select id="cx-ano" onchange="trocarMes('cx')"></select>
+                <strong>Mês:</strong>
+                <select id="cx-mes" onchange="trocarMes('cx')">
+                    <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
+                    <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
+                    <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                </select>
+            </div>
+
+            <!-- Cards 2x2 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="stat-card pendente" onclick="abrirRelatorio('cx','pendente')"><span class="stat-label">Pendenciados</span><span class="stat-value" id="cx-count-pendentes">0</span></div>
+                <div class="stat-card tes-card" onclick="abrirRelatorio('cx','tes')"><span class="stat-label">Parados c/<br>Tesoureiro</span><span class="stat-value" id="cx-count-tes">0</span></div>
+                <div class="stat-card cri-card" onclick="abrirRelatorio('cx','cri')"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="cx-count-cri">0</span></div>
+                <div class="stat-card sim-card" onclick="abrirRelatorio('cx','sim')"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="cx-count-sim">0</span></div>
+            </div>
         </div>
-        <button class="btn-update" onclick="trocarMes('cx')">Atualizar Vista</button>
+
+        <!-- LADO DIREITO: quadrante -->
+        <div class="quadrante-wrap">
+            <div class="quadrante-header">
+                <span class="quadrante-titulo">📋 Conferência de Caixa</span>
+                <button class="btn-limpar" onclick="limparQuadrante()">🗑 Limpar</button>
+            </div>
+            <table class="q-table">
+                <tr>
+                    <td class="q-label">SISTEMA</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC2" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-formula" id="qE2">R$ 0,00</td>
+                    <td class="q-vazio"></td>
+                </tr>
+                <tr>
+                    <td class="q-label">CARTÃO</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC3" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-empty"></td>
+                    <td class="q-vazio"></td>
+                </tr>
+                <tr>
+                    <td class="q-label">RELATÓRIO</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC4" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-formula" id="qE4">R$ 0,00</td>
+                    <td class="q-adto-label">ADTO</td>
+                </tr>
+                <tr>
+                    <td class="q-label sep">TÍTULOS</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC5" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-empty"></td>
+                    <td class="q-vazio"></td>
+                </tr>
+                <tr>
+                    <td class="q-label">NF</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC6" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-formula" id="qE6">R$ 0,00</td>
+                    <td class="q-vazio"></td>
+                </tr>
+                <tr>
+                    <td class="q-label">DINHEIRO</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC7" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-empty"></td>
+                    <td class="q-vazio"></td>
+                </tr>
+                <tr>
+                    <td class="q-label">ADTO</td>
+                    <td class="q-input"><span class="q-cifrao">R$</span><input type="text" id="qC8" placeholder="0,00" oninput="fmtInput(this)" onblur="fmtInputBlur(this)"></td>
+                    <td class="q-vazio"></td>
+                    <td class="q-formula" id="qE8">R$ 0,00</td>
+                    <td class="q-vazio"></td>
+                </tr>
+            </table>
+        </div>
     </div>
-    <div id="cx-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div id="cx-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Período anterior a maio/2026 — não contabilizado no dashboard.</div>
     <div class="table-wrapper">
-    <div class="table-container">
-        <table><thead><tr id="cx-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="cx-tabela-corpo"></tbody></table>
-    </div>
+        <div class="table-container">
+            <table><thead><tr id="cx-header-row"><th style="width:58px">Dia</th></tr></thead><tbody id="cx-tabela-corpo"></tbody></table>
+        </div>
     </div>
 </div>
 
 <!-- CONCILIAÇÃO -->
 <div class="pagina" id="pag-conciliacao">
-    <div class="data-atual-bar">
-        <span class="data-label">📅 Data atual:</span>
-        <span class="data-valor" id="bc-data-hoje"></span>
-        <span class="data-ref" id="bc-data-ref-texto"></span>
-    </div>
-    <div class="dashboard">
-        <div class="stat-card pendente"><span class="stat-label">Bancos Pendenciados</span><span class="stat-value" id="bc-count-pendentes">0</span></div>
-        <div class="stat-card tes-card"><span class="stat-label">Parados c/<br>Contas a Receber</span><span class="stat-value" id="bc-count-tes">0</span></div>
-        <div class="stat-card cri-card"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="bc-count-cri">0</span></div>
-        <div class="stat-card sim-card"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="bc-count-sim">0</span></div>
-    </div>
-    <div class="filters">
-        <div><strong>Ano:</strong> <select id="bc-ano" onchange="trocarMes('bc')"></select></div>
-        <div><strong>Mês:</strong>
-            <select id="bc-mes" onchange="trocarMes('bc')">
-                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
-                <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
-                <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
-            </select>
+    <div style="display:flex;gap:12px;margin-bottom:8px;align-items:flex-start;">
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;">
+            <div class="filtros-inline" style="align-self:flex-start;">
+                <strong>Ano:</strong> <select id="bc-ano" onchange="trocarMes('bc')"></select>
+                <strong>Mês:</strong>
+                <select id="bc-mes" onchange="trocarMes('bc')">
+                    <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
+                    <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
+                    <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="stat-card pendente" onclick="abrirRelatorio('bc','pendente')"><span class="stat-label">Pendenciados</span><span class="stat-value" id="bc-count-pendentes">0</span></div>
+                <div class="stat-card tes-card" onclick="abrirRelatorio('bc','tes')"><span class="stat-label">Parados c/<br>Contas a Receber</span><span class="stat-value" id="bc-count-tes">0</span></div>
+                <div class="stat-card cri-card" onclick="abrirRelatorio('bc','cri')"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="bc-count-cri">0</span></div>
+                <div class="stat-card sim-card" onclick="abrirRelatorio('bc','sim')"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="bc-count-sim">0</span></div>
+            </div>
         </div>
-        <button class="btn-update" onclick="trocarMes('bc')">Atualizar Vista</button>
     </div>
-    <div id="bc-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Este período é anterior a maio/2026 — os dados não são contabilizados no dashboard.</div>
+    <div id="bc-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Período anterior a maio/2026 — não contabilizado no dashboard.</div>
     <div class="table-wrapper">
-    <div class="table-container">
-        <table><thead><tr id="bc-header-row"><th style="width:56px">Dia</th></tr></thead><tbody id="bc-tabela-corpo"></tbody></table>
-    </div>
+        <div class="table-container">
+            <table><thead><tr id="bc-header-row"><th style="width:58px">Dia</th></tr></thead><tbody id="bc-tabela-corpo"></tbody></table>
+        </div>
     </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL OBS -->
 <div class="modal-overlay" id="modal-obs">
     <div class="modal-box">
         <p class="modal-title" id="modal-titulo">Observação</p>
         <textarea class="modal-textarea" id="modal-texto" placeholder="Digite a observação aqui..."></textarea>
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-cancel" onclick="fecharModal('modal-obs')">Cancelar</button>
             <button class="btn-save" onclick="salvarObs()">Salvar</button>
         </div>
     </div>
 </div>
 
-<!-- FIREBASE (module) -->
+<!-- MODAL RELATÓRIO -->
+<div class="modal-overlay" id="modal-relatorio">
+    <div class="modal-box relatorio-box">
+        <p class="modal-title" id="relatorio-titulo">Relatório</p>
+        <div id="relatorio-corpo" class="relatorio-lista"></div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="fecharModal('modal-relatorio')">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp }                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -186,8 +299,7 @@ const db = getFirestore(app);
 
 function setSyncStatus(msg, cls) {
     const el = document.getElementById('sync-status');
-    el.textContent = msg;
-    el.className = 'sync-bar ' + cls;
+    el.textContent = msg; el.className = 'sync-bar ' + cls;
 }
 
 let saveTimer = null;
@@ -197,57 +309,43 @@ window._salvarFirebase = function(prefixo) {
     saveTimer = setTimeout(async () => {
         try {
             const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
-            const ano = parseInt(document.getElementById(prefixo + '-ano').value);
-            const mes = parseInt(document.getElementById(prefixo + '-mes').value);
-            const key = prefixo + '_' + ano + '_' + String(mes).padStart(2, '0');
-
-            const selectVals = {};
-            const disabledIds = [];
+            const ano = parseInt(document.getElementById(prefixo+'-ano').value);
+            const mes = parseInt(document.getElementById(prefixo+'-mes').value);
+            const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
+            const selectVals = {}, disabledIds = [];
             document.querySelectorAll('select[id^="sel_"]').forEach(el => {
-                if (el.id.endsWith('_' + prefixo)) {
+                if (el.id.endsWith('_'+prefixo)) {
                     selectVals[el.id] = el.value;
                     if (el.disabled) disabledIds.push(el.id);
                 }
             });
-
-            await setDoc(doc(db, 'controle', key), {
-                selectVals,
-                disabledIds,
-                obsData:    Object.assign({}, cfg.obsData),
+            await setDoc(doc(db,'controle',key), {
+                selectVals, disabledIds,
+                obsData: Object.assign({}, cfg.obsData),
                 feriadoSet: Object.assign({}, cfg.feriadoSet)
             });
-            console.log('[Firebase] Salvo:', key, 'feriadoSet:', cfg.feriadoSet);
             setSyncStatus('✔ Salvo', 'salvo');
-            setTimeout(() => setSyncStatus('', ''), 3000);
-        } catch(e) {
-            setSyncStatus('✖ Erro ao salvar', 'erro');
-            console.error(e);
-        }
+            setTimeout(() => setSyncStatus('',''), 3000);
+        } catch(e) { setSyncStatus('✖ Erro ao salvar','erro'); console.error(e); }
     }, 800);
 };
 
 window._carregarFirebase = async function(prefixo, ano, mes) {
     setSyncStatus('⏳ Carregando...', 'salvando');
     try {
-        const key  = prefixo + '_' + ano + '_' + String(mes).padStart(2, '0');
-        const snap = await getDoc(doc(db, 'controle', key));
-        if (!snap.exists()) { setSyncStatus('', ''); return; }
-
+        const key  = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
+        const snap = await getDoc(doc(db,'controle',key));
+        if (!snap.exists()) { setSyncStatus('',''); return; }
         const data = snap.data();
         const cfg  = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
 
-        // 1) Restaura obsData e feriadoSet na memória
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
-        // 2) Re-renderiza o mês com feriadoSet já preenchido
-        //    (isso faz os dias de feriado geral aparecerem como "Feriado" e
-        //     o checkbox ficar marcado automaticamente)
         window._renderizarMesExterno(prefixo);
 
-        // 3) Aguarda DOM atualizar e aplica selectVals + disabled
         setTimeout(() => {
             if (data.selectVals) {
                 Object.entries(data.selectVals).forEach(([id, val]) => {
@@ -261,35 +359,25 @@ window._carregarFirebase = async function(prefixo, ano, mes) {
                     if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
                 });
             }
-
-            // 4) Reaplicar cores e opacidades
             window._reaplicarEstados(prefixo);
-
-            setSyncStatus('✔ Carregado', 'salvo');
-            setTimeout(() => setSyncStatus('', ''), 3000);
+            setSyncStatus('✔ Carregado','salvo');
+            setTimeout(() => setSyncStatus('',''), 3000);
         }, 300);
-    } catch(e) {
-        setSyncStatus('✖ Erro ao carregar', 'erro');
-        console.error(e);
-    }
+    } catch(e) { setSyncStatus('✖ Erro ao carregar','erro'); console.error(e); }
 };
 
 window._reaplicarEstados = function(prefixo) {
     const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
-    const ano = parseInt(document.getElementById(prefixo + '-ano').value);
-    const mes = parseInt(document.getElementById(prefixo + '-mes').value);
-    const totalDias = new Date(ano, mes + 1, 0).getDate();
-
-    for (let d = 1; d <= totalDias; d++) {
+    const ano = parseInt(document.getElementById(prefixo+'-ano').value);
+    const mes = parseInt(document.getElementById(prefixo+'-mes').value);
+    for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
         cfg.caixas.forEach(c => {
-            const idBase = d + '_' + c.replace(/ /g, '_') + '_' + mes + '_' + ano;
-            window.atualizar(idBase, prefixo);
+            window.atualizar(d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano, prefixo);
         });
     }
-    // Reaplicar obs buttons
     Object.entries(cfg.obsData).forEach(([idBase, texto]) => {
         if (!texto) return;
-        const area = document.getElementById('obsarea_' + idBase + '_' + prefixo);
+        const area = document.getElementById('obsarea_'+idBase+'_'+prefixo);
         if (!area) return;
         const btn = area.querySelector('.btn-obs');
         if (btn) { btn.classList.add('has-obs'); btn.innerText = '📝 Ver obs.'; }
@@ -306,27 +394,28 @@ window._firebaseReady = true;
 <script>
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 const DIAS_EXT    = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+const MESES_NOME  = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 let modalAtualId = null, modalObsDataRef = null, modalPrefixo = null;
 
 function mudarPagina(p) {
     document.querySelectorAll('.pagina').forEach(el => el.classList.remove('ativa'));
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('ativo'));
-    document.getElementById('pag-' + p).classList.add('ativa');
-    document.getElementById('nav-' + p).classList.add('ativo');
+    document.getElementById('pag-'+p).classList.add('ativa');
+    document.getElementById('nav-'+p).classList.add('ativo');
 }
 
 function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function atualizarDataAtual(p) {
-    const hoje = new Date(), ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-1);
-    document.getElementById(p+'-data-hoje').innerText =
+    // Atualiza só a data na nav (uma vez serve para ambas as abas)
+    const hoje = new Date();
+    const navEl = document.getElementById('nav-data-hoje');
+    if (navEl) navEl.innerText =
         String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()+' — '+DIAS_EXT[hoje.getDay()];
-    document.getElementById(p+'-data-ref-texto').innerHTML =
-        'Dashboard contabiliza pendências<br>até o dia anterior: <strong>'+
-        String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear()+'</strong>';
 }
 
+/* ── BUILD HTML CÉLULA ── */
 function buildCaixaHTML(idBase, obsData, conferentes, p) {
     const confHTML = conferentes.map(conf => `
         <div class="conf-row" id="confrow_${conf.key}_${idBase}_${p}">
@@ -342,21 +431,21 @@ function buildCaixaHTML(idBase, obsData, conferentes, p) {
     return `<div class="caixa-cell"><div class="conferencias">${confHTML}</div>
         <div class="obs-area" id="obsarea_${idBase}_${p}">
             <button class="btn-obs ${temObs?'has-obs':''}" onclick="abrirModal('${idBase}','${p}')">
-                ${temObs?'📝 Ver obs.':'+ Adicionar obs.'}</button>
+                ${temObs?'📝 Ver obs.':'+ Obs.'}</button>
             ${temObs?`<div class="obs-tooltip">${escapeHtml(obs)}</div>`:''}
         </div></div>`;
 }
 
+/* ── RENDERIZAR MÊS ── */
 function renderizarMes(cfg) {
     const { prefixo:p, caixas, conferentes, obsData, feriadoSet, pulaFimDeSemana } = cfg;
     const ano = parseInt(document.getElementById(p+'-ano').value);
     const mes = parseInt(document.getElementById(p+'-mes').value);
     const corpo = document.getElementById(p+'-tabela-corpo');
     corpo.innerHTML = '';
-    document.getElementById(p+'-aviso-periodo').style.display =
-        ((ano > 2026)||(ano===2026&&mes>=4)) ? 'none' : '';
+    document.getElementById(p+'-aviso-periodo').style.display = ((ano>2026)||(ano===2026&&mes>=4)) ? 'none' : '';
 
-    for (let d = 1; d <= new Date(ano,mes+1,0).getDate(); d++) {
+    for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
         const dataObj = new Date(ano,mes,d), diaSem = dataObj.getDay();
         if (pulaFimDeSemana) { if (diaSem===0||diaSem===6) continue; }
         else { if (diaSem===0) continue; }
@@ -365,7 +454,7 @@ function renderizarMes(cfg) {
         const tr = document.createElement('tr');
 
         const diaCell = document.createElement('td');
-        diaCell.className = 'dia-col' + (eFer?' bg-feriado':'');
+        diaCell.className = 'dia-col'+(eFer?' bg-feriado':'');
         diaCell.innerHTML = `<div class="dia-inner">
             <span class="dia-num">${d}</span>
             <span class="dia-semana">${DIAS_SEMANA[diaSem]}</span>
@@ -380,7 +469,7 @@ function renderizarMes(cfg) {
             const idBase = d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
             const td = document.createElement('td');
             td.id = 'td_'+idBase+'_'+p;
-            if (eFer) { td.classList.add('bg-feriado'); td.innerHTML = '<span class="inativo-label">Feriado</span>'; }
+            if (eFer) { td.classList.add('bg-feriado'); td.innerHTML='<span class="inativo-label">Feriado</span>'; }
             else td.innerHTML = buildCaixaHTML(idBase, obsData, conferentes, p);
             tr.appendChild(td);
         });
@@ -389,6 +478,7 @@ function renderizarMes(cfg) {
     atualizarDashboard(cfg);
 }
 
+/* ── ATUALIZAR CÉLULA ── */
 window.atualizar = function(idBase, p) {
     const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
     const td  = document.getElementById('td_'+idBase+'_'+p);
@@ -415,12 +505,18 @@ window.atualizar = function(idBase, p) {
             if (sel.value==='FER') sel.value='AGU';
         }
 
+        // Verde por linha quando conferido
+        if (row) {
+            if (sel.value==='CON') row.classList.add('row-conferido');
+            else row.classList.remove('row-conferido');
+        }
+
         if (sel.value==='FER') {
             if (row) row.style.opacity='0.35';
             sel.style.background='#ffcdd2';
         } else {
-            if (row) row.style.opacity='';
-            sel.style.background='';
+            if (row) { if (sel.value!=='CON') row.style.opacity=''; }
+            if (sel.value!=='CON') sel.style.background='';
             todoFeriado=false;
         }
         if (sel.value==='PEN') algumPendente=true;
@@ -435,6 +531,7 @@ window.atualizar = function(idBase, p) {
     if (window._salvarFirebase) window._salvarFirebase(p);
 };
 
+/* ── FERIADO GERAL ── */
 function toggleFeriado(chFer, d, mes, ano, p) {
     const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
     const cb  = document.getElementById('fer_'+chFer+'_'+p);
@@ -442,7 +539,6 @@ function toggleFeriado(chFer, d, mes, ano, p) {
     const diaCell = cb.closest('td');
     if (cb.checked) diaCell.classList.add('bg-feriado');
     else diaCell.classList.remove('bg-feriado');
-
     cfg.caixas.forEach(c => {
         const idBase = d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
         const td = document.getElementById('td_'+idBase+'_'+p);
@@ -455,22 +551,20 @@ function toggleFeriado(chFer, d, mes, ano, p) {
     if (window._salvarFirebase) window._salvarFirebase(p);
 }
 
+/* ── DASHBOARD ── */
 function atualizarDashboard(cfg) {
     const { prefixo:p, caixas, conferentes, feriadoSet, pulaFimDeSemana } = cfg;
     const ano = parseInt(document.getElementById(p+'-ano').value);
     const mes = parseInt(document.getElementById(p+'-mes').value);
     const valido = (ano>2026)||(ano===2026&&mes>=4);
-
     if (!valido) {
         document.getElementById(p+'-count-pendentes').innerText='—';
         conferentes.forEach(c => { const el=document.getElementById(p+'-count-'+c.key); if(el) el.innerText='—'; });
         return;
     }
-
     const hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
     let pen=0; const parado={};
     conferentes.forEach(c => parado[c.key]=0);
-
     for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
         const dl=new Date(ano,mes,d);
         if (dl>ontem) continue;
@@ -478,7 +572,6 @@ function atualizarDashboard(cfg) {
         if (pulaFimDeSemana) { if (ds===0||ds===6) continue; }
         else { if (ds===0) continue; }
         if (feriadoSet[d+'_'+mes+'_'+ano]) continue;
-
         caixas.forEach(c => {
             const idBase=d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
             let ap=false;
@@ -496,16 +589,83 @@ function atualizarDashboard(cfg) {
     conferentes.forEach(c => { document.getElementById(p+'-count-'+c.key).innerText=parado[c.key]; });
 }
 
+/* ── RELATÓRIO CLICÁVEL ── */
+function abrirRelatorio(p, tipo) {
+    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const ano = parseInt(document.getElementById(p+'-ano').value);
+    const mes = parseInt(document.getElementById(p+'-mes').value);
+    const hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
+
+    const titulos = {
+        pendente: '⚠ Pendenciados',
+        tes: 'Parados c/ '+ cfg.conferentes[0].label,
+        cri: 'Parados c/ '+ cfg.conferentes[1].label,
+        sim: 'Parados c/ '+ cfg.conferentes[2].label
+    };
+    document.getElementById('relatorio-titulo').innerText =
+        titulos[tipo] + ' — ' + MESES_NOME[mes] + '/' + ano;
+
+    const itens = [];
+    for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
+        const dl=new Date(ano,mes,d);
+        if (dl>ontem) continue;
+        const ds=dl.getDay();
+        if (cfg.pulaFimDeSemana) { if (ds===0||ds===6) continue; }
+        else { if (ds===0) continue; }
+        if (cfg.feriadoSet[d+'_'+mes+'_'+ano]) continue;
+
+        cfg.caixas.forEach(c => {
+            const idBase=d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
+            let incluir = false;
+            let statusDesc = '';
+
+            if (tipo === 'pendente') {
+                const temPen = cfg.conferentes.some(conf => {
+                    const sel=document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+                    return sel && sel.value==='PEN';
+                });
+                if (temPen) { incluir=true; statusDesc='Pendenciado'; }
+            } else {
+                const sel=document.getElementById('sel_'+tipo+'_'+idBase+'_'+p);
+                if (sel && sel.value==='AGU') { incluir=true; statusDesc='Aguardando'; }
+            }
+
+            if (incluir) {
+                const obs = cfg.obsData[idBase] || '';
+                itens.push({ d, c, obs, statusDesc });
+            }
+        });
+    }
+
+    const corpo = document.getElementById('relatorio-corpo');
+    if (itens.length === 0) {
+        corpo.innerHTML = '<div class="relatorio-vazio">✅ Nenhum item encontrado!</div>';
+    } else {
+        corpo.innerHTML = itens.map(it => `
+            <div class="relatorio-item">
+                <span class="ri-dia">📅 Dia ${it.d}/${String(mes+1).padStart(2,'0')}</span>
+                <span class="ri-casa">— ${it.c}</span>
+                <br>
+                <span class="ri-status ${tipo==='pendente'?'pen':'agu'}">${it.statusDesc}</span>
+                ${it.obs ? `<div class="ri-obs">💬 ${escapeHtml(it.obs)}</div>` : ''}
+            </div>`).join('');
+    }
+    document.getElementById('modal-relatorio').classList.add('active');
+}
+
+/* ── MODAIS ── */
+function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+
 function abrirModal(idBase, p) {
     modalAtualId=idBase; modalPrefixo=p;
     modalObsDataRef=(p==='cx'?cfgCaixa:cfgConciliacao).obsData;
     const pt=idBase.split('_');
-    document.getElementById('modal-titulo').innerText='Observação — Dia '+pt[0]+' · '+pt[1];
+    document.getElementById('modal-titulo').innerText='Observação — Dia '+pt[0]+' · '+pt[1].replace(/_/g,' ');
     document.getElementById('modal-texto').value=modalObsDataRef[idBase]||'';
     document.getElementById('modal-obs').classList.add('active');
     setTimeout(()=>document.getElementById('modal-texto').focus(),100);
 }
-function fecharModal() { document.getElementById('modal-obs').classList.remove('active'); modalAtualId=null; }
+
 function salvarObs() {
     if (!modalAtualId) return;
     const texto=document.getElementById('modal-texto').value.trim();
@@ -518,15 +678,18 @@ function salvarObs() {
             if (!tt) { tt=document.createElement('div'); tt.className='obs-tooltip'; area.appendChild(tt); }
             tt.innerText=texto;
         } else {
-            btn.classList.remove('has-obs'); btn.innerText='+ Adicionar obs.';
+            btn.classList.remove('has-obs'); btn.innerText='+ Obs.';
             if (tt) tt.remove();
         }
     }
     if (window._salvarFirebase) window._salvarFirebase(modalPrefixo);
-    fecharModal();
+    fecharModal('modal-obs');
 }
-document.getElementById('modal-obs').addEventListener('click', function(e){ if(e.target===this) fecharModal(); });
 
+document.getElementById('modal-obs').addEventListener('click', function(e){ if(e.target===this) fecharModal('modal-obs'); });
+document.getElementById('modal-relatorio').addEventListener('click', function(e){ if(e.target===this) fecharModal('modal-relatorio'); });
+
+/* ── TROCAR MÊS ── */
 function trocarMes(p) {
     const cfg=p==='cx'?cfgCaixa:cfgConciliacao;
     Object.keys(cfg.obsData).forEach(k=>delete cfg.obsData[k]);
@@ -537,12 +700,11 @@ function trocarMes(p) {
     if (window._carregarFirebase) window._carregarFirebase(p, ano, mes);
 }
 
-// Expõe renderizarMes para o módulo Firebase poder chamar após restaurar feriadoSet
 window._renderizarMesExterno = function(p) {
-    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
-    renderizarMes(cfg);
+    renderizarMes(p==='cx' ? cfgCaixa : cfgConciliacao);
 };
 
+/* ── CONFIGURAÇÕES ── */
 window.cfgCaixa = {
     prefixo:'cx', pulaFimDeSemana:false,
     caixas:["GPI","ARG","SLZ","PA SLZ","ITZ","THE","BLS"],
@@ -556,6 +718,7 @@ window.cfgConciliacao = {
     obsData:{}, feriadoSet:{}
 };
 
+/* ── INICIALIZAR ── */
 function inicializarModulo(cfg) {
     const p=cfg.prefixo;
     atualizarDataAtual(p);
@@ -574,14 +737,72 @@ function inicializarModulo(cfg) {
     cfg.caixas.forEach(c=>{ const th=document.createElement('th'); th.innerText=c; hRow.appendChild(th); });
 
     renderizarMes(cfg);
-
-    // Aguarda Firebase inicializar e carrega dados
     const ano=new Date().getFullYear(), mes=new Date().getMonth();
     const t=setInterval(()=>{ if(window._carregarFirebase){ clearInterval(t); window._carregarFirebase(p,ano,mes); } },100);
 }
 
 inicializarModulo(window.cfgCaixa);
 inicializarModulo(window.cfgConciliacao);
+
+/* ── QUADRANTE DE CONFERÊNCIA ── */
+function fmtBRL(v) {
+    return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Converte string digitada para número (aceita ponto e vírgula)
+function parseBRL(str) {
+    if (!str) return 0;
+    // Remove pontos de milhar e troca vírgula decimal por ponto
+    let s = str.replace(/\./g, '').replace(',', '.');
+    return parseFloat(s) || 0;
+}
+
+// Formata enquanto digita: só permite números, ponto e vírgula
+function fmtInput(el) {
+    let val = el.value.replace(/[^\d,]/g, ''); // só dígitos e vírgula
+    el.value = val;
+    calcQuadrante();
+}
+
+// Ao sair do campo: formata com pontos de milhar e vírgula decimal
+function fmtInputBlur(el) {
+    const num = parseBRL(el.value);
+    if (num !== 0) {
+        el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    calcQuadrante();
+}
+
+function calcQuadrante() {
+    const v = id => parseBRL(document.getElementById(id).value);
+    const C2=v('qC2'), C3=v('qC3'), C4=v('qC4'), C5=v('qC5'), C6=v('qC6'), C8=v('qC8');
+
+    const E2 = C4 - C3;
+    const E4 = C3 - C2;
+    const E6 = C5 - C6;
+    const E8 = E4 - C8;
+
+    const set = (id, val) => {
+        const el = document.getElementById(id);
+        el.innerText = fmtBRL(val);
+        el.style.color = val < 0 ? '#c62828' : '#1b5e20';
+    };
+    set('qE2', E2);
+    set('qE4', E4);
+    set('qE6', E6);
+    set('qE8', E8);
+}
+
+function limparQuadrante() {
+    ['qC2','qC3','qC4','qC5','qC6','qC7','qC8'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    ['qE2','qE4','qE6','qE8'].forEach(id => {
+        const el = document.getElementById(id);
+        el.innerText = 'R$ 0,00';
+        el.style.color = '#1b5e20';
+    });
+}
 </script>
 </body>
 </html>
