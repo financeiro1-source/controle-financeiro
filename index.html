@@ -757,10 +757,16 @@ function parseBRL(str) {
     return parseFloat(s) || 0;
 }
 
-// Formata enquanto digita: só permite números, ponto e vírgula
+// Formata enquanto digita: permite números, vírgula, ponto e operadores para expressões
 function fmtInput(el) {
-    let val = el.value.replace(/[^\d,]/g, ''); // só dígitos e vírgula
-    el.value = val;
+    const val = el.value;
+    // Se começa com "=", permite qualquer caractere matemático
+    if (val.startsWith('=')) {
+        // Não interfere, deixa digitar livremente
+    } else {
+        // Só números e vírgula
+        el.value = val.replace(/[^\d,]/g, '');
+    }
     calcQuadrante();
 }
 
