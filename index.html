@@ -764,11 +764,32 @@ function fmtInput(el) {
     calcQuadrante();
 }
 
-// Ao sair do campo: formata com pontos de milhar e vírgula decimal
+// Ao sair do campo: se começar com "=", avalia a expressão; senão formata BRL
 function fmtInputBlur(el) {
-    const num = parseBRL(el.value);
-    if (num !== 0) {
-        el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let val = el.value.trim();
+    if (val.startsWith('=')) {
+        try {
+            // Remove o "=" e normaliza: troca vírgula decimal por ponto
+            let expr = val.substring(1).replace(/,/g, '.');
+            // Permite apenas números e operadores seguros
+            if (/^[\d\s\+\-\*\/\.\(\)]+$/.test(expr)) {
+                const result = Function('"use strict"; return (' + expr + ')')();
+                if (!isNaN(result)) {
+                    el.value = result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else {
+                    el.value = '';
+                }
+            } else {
+                el.value = '';
+            }
+        } catch(e) {
+            el.value = '';
+        }
+    } else {
+        const num = parseBRL(val);
+        if (num !== 0) {
+            el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
     }
     calcQuadrante();
 }
