@@ -133,6 +133,7 @@
     </div>
     <button class="nav-btn ativo" onclick="mudarPagina('caixa')" id="nav-caixa">🏧 Caixa</button>
     <button class="nav-btn" onclick="mudarPagina('conciliacao')" id="nav-conciliacao">🏦 Conciliação Bancária</button>
+    <button class="nav-btn" onclick="mudarPagina('terceirizadas')" id="nav-terceirizadas">🏢 Conciliação Terceirizadas</button>
     <span class="sync-bar" id="sync-status"></span>
 </nav>
 
@@ -259,6 +260,35 @@
     </div>
 </div>
 
+<!-- CONCILIAÇÃO TERCEIRIZADAS -->
+<div class="pagina" id="pag-terceirizadas">
+    <div style="display:flex;gap:12px;margin-bottom:8px;align-items:flex-start;">
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;">
+            <div class="filtros-inline" style="align-self:flex-start;">
+                <strong>Ano:</strong> <select id="tc-ano" onchange="trocarMes('tc')"></select>
+                <strong>Mês:</strong>
+                <select id="tc-mes" onchange="trocarMes('tc')">
+                    <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option>
+                    <option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option>
+                    <option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="stat-card pendente" onclick="abrirRelatorio('tc','pendente')"><span class="stat-label">Pendenciados</span><span class="stat-value" id="tc-count-pendentes">0</span></div>
+                <div class="stat-card tes-card" onclick="abrirRelatorio('tc','tes')"><span class="stat-label">Parados c/<br>Contas a Receber</span><span class="stat-value" id="tc-count-tes">0</span></div>
+                <div class="stat-card cri-card" onclick="abrirRelatorio('tc','cri')"><span class="stat-label">Parados c/<br>Cristiano</span><span class="stat-value" id="tc-count-cri">0</span></div>
+                <div class="stat-card sim-card" onclick="abrirRelatorio('tc','sim')"><span class="stat-label">Parados c/<br>Simone</span><span class="stat-value" id="tc-count-sim">0</span></div>
+            </div>
+        </div>
+    </div>
+    <div id="tc-aviso-periodo" class="aviso-periodo" style="display:none">ℹ️ Período anterior a maio/2026 — não contabilizado no dashboard.</div>
+    <div class="table-wrapper">
+        <div class="table-container">
+            <table><thead><tr id="tc-header-row"><th style="width:58px">Dia</th></tr></thead><tbody id="tc-tabela-corpo"></tbody></table>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL OBS -->
 <div class="modal-overlay" id="modal-obs">
     <div class="modal-box">
@@ -308,7 +338,7 @@ window._salvarFirebase = function(prefixo) {
     setSyncStatus('💾 Salvando...', 'salvando');
     saveTimer = setTimeout(async () => {
         try {
-            const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+            const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
             const ano = parseInt(document.getElementById(prefixo+'-ano').value);
             const mes = parseInt(document.getElementById(prefixo+'-mes').value);
             const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
@@ -337,7 +367,7 @@ window._carregarFirebase = async function(prefixo, ano, mes) {
         const snap = await getDoc(doc(db,'controle',key));
         if (!snap.exists()) { setSyncStatus('',''); return; }
         const data = snap.data();
-        const cfg  = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+        const cfg  = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
 
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
@@ -367,7 +397,7 @@ window._carregarFirebase = async function(prefixo, ano, mes) {
 };
 
 window._reaplicarEstados = function(prefixo) {
-    const cfg = prefixo === 'cx' ? window.cfgCaixa : window.cfgConciliacao;
+    const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
     const ano = parseInt(document.getElementById(prefixo+'-ano').value);
     const mes = parseInt(document.getElementById(prefixo+'-mes').value);
     for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
@@ -480,7 +510,7 @@ function renderizarMes(cfg) {
 
 /* ── ATUALIZAR CÉLULA ── */
 window.atualizar = function(idBase, p) {
-    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const cfg = getCfg(p);
     const td  = document.getElementById('td_'+idBase+'_'+p);
     if (!td) return;
     td.classList.remove('bg-pendente','bg-conferido','bg-feriado');
@@ -533,7 +563,7 @@ window.atualizar = function(idBase, p) {
 
 /* ── FERIADO GERAL ── */
 function toggleFeriado(chFer, d, mes, ano, p) {
-    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const cfg = getCfg(p);
     const cb  = document.getElementById('fer_'+chFer+'_'+p);
     cfg.feriadoSet[chFer] = cb.checked;
     const diaCell = cb.closest('td');
@@ -591,7 +621,7 @@ function atualizarDashboard(cfg) {
 
 /* ── RELATÓRIO CLICÁVEL ── */
 function abrirRelatorio(p, tipo) {
-    const cfg = p==='cx' ? cfgCaixa : cfgConciliacao;
+    const cfg = getCfg(p);
     const ano = parseInt(document.getElementById(p+'-ano').value);
     const mes = parseInt(document.getElementById(p+'-mes').value);
     const hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
@@ -691,7 +721,7 @@ document.getElementById('modal-relatorio').addEventListener('click', function(e)
 
 /* ── TROCAR MÊS ── */
 function trocarMes(p) {
-    const cfg=p==='cx'?cfgCaixa:cfgConciliacao;
+    const cfg=getCfg(p);
     Object.keys(cfg.obsData).forEach(k=>delete cfg.obsData[k]);
     Object.keys(cfg.feriadoSet).forEach(k=>delete cfg.feriadoSet[k]);
     renderizarMes(cfg);
@@ -701,8 +731,14 @@ function trocarMes(p) {
 }
 
 window._renderizarMesExterno = function(p) {
-    renderizarMes(p==='cx' ? cfgCaixa : cfgConciliacao);
+    renderizarMes(getCfg(p));
 };
+
+function getCfg(p) {
+    if (p==='cx') return cfgCaixa;
+    if (p==='bc') return cfgConciliacao;
+    return cfgTerceirizadas;
+}
 
 /* ── CONFIGURAÇÕES ── */
 window.cfgCaixa = {
@@ -714,6 +750,12 @@ window.cfgCaixa = {
 window.cfgConciliacao = {
     prefixo:'bc', pulaFimDeSemana:true,
     caixas:["Bradesco","Santander","Brasil","Itaú","Sicredi","Basa","Nordeste","Aplicações"],
+    conferentes:[{key:"tes",label:"Contas a Receber"},{key:"cri",label:"Cristiano"},{key:"sim",label:"Simone"}],
+    obsData:{}, feriadoSet:{}
+};
+window.cfgTerceirizadas = {
+    prefixo:'tc', pulaFimDeSemana:true,
+    caixas:["Jem Agro","Jem Negócios","ADM","Gestora","Intermediação","Investimentos","Locação"],
     conferentes:[{key:"tes",label:"Contas a Receber"},{key:"cri",label:"Cristiano"},{key:"sim",label:"Simone"}],
     obsData:{}, feriadoSet:{}
 };
@@ -743,6 +785,7 @@ function inicializarModulo(cfg) {
 
 inicializarModulo(window.cfgCaixa);
 inicializarModulo(window.cfgConciliacao);
+inicializarModulo(window.cfgTerceirizadas);
 
 /* ── QUADRANTE DE CONFERÊNCIA ── */
 function fmtBRL(v) {
