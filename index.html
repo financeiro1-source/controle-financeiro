@@ -332,11 +332,11 @@ function setSyncStatus(msg, cls) {
     el.textContent = msg; el.className = 'sync-bar ' + cls;
 }
 
-let saveTimer = null;
+let saveTimers = {};
 window._salvarFirebase = function(prefixo) {
-    clearTimeout(saveTimer);
+    clearTimeout(saveTimers[prefixo]);
     setSyncStatus('💾 Salvando...', 'salvando');
-    saveTimer = setTimeout(async () => {
+    saveTimers[prefixo] = setTimeout(async () => {
         try {
             const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
             const ano = parseInt(document.getElementById(prefixo+'-ano').value);
@@ -417,6 +417,40 @@ window._reaplicarEstados = function(prefixo) {
     });
 };
 
+// Salva imediatamente (sem debounce) — usado ao trocar aba ou fechar página
+window._salvarImediato = async function(prefixo) {
+    clearTimeout(saveTimers[prefixo]);
+    try {
+        const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+        if (!cfg) return;
+        const anoEl = document.getElementById(prefixo+'-ano');
+        const mesEl = document.getElementById(prefixo+'-mes');
+        if (!anoEl || !mesEl) return;
+        const ano = parseInt(anoEl.value);
+        const mes = parseInt(mesEl.value);
+        const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
+        const selectVals = {}, disabledIds = [];
+        document.querySelectorAll('select[id^="sel_"]').forEach(el => {
+            if (el.id.endsWith('_'+prefixo)) {
+                selectVals[el.id] = el.value;
+                if (el.disabled) disabledIds.push(el.id);
+            }
+        });
+        await setDoc(doc(db,'controle',key), {
+            selectVals, disabledIds,
+            obsData: Object.assign({}, cfg.obsData),
+            feriadoSet: Object.assign({}, cfg.feriadoSet)
+        });
+    } catch(e) { console.error('Erro ao salvar imediato:', e); }
+};
+
+// Salva tudo ao fechar/recarregar a página
+window.addEventListener('beforeunload', () => {
+    ['cx','bc','tc'].forEach(p => {
+        if (window._salvarImediato) window._salvarImediato(p);
+    });
+});
+
 window._firebaseReady = true;
 </script>
 
@@ -429,6 +463,11 @@ const MESES_NOME  = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julh
 let modalAtualId = null, modalObsDataRef = null, modalPrefixo = null;
 
 function mudarPagina(p) {
+    // Força salvar a aba atual antes de trocar
+    document.querySelectorAll('.pagina.ativa').forEach(pag => {
+        const prefixoAtual = pag.id.replace('pag-','');
+        if (window._salvarImediato) window._salvarImediato(prefixoAtual);
+    });
     document.querySelectorAll('.pagina').forEach(el => el.classList.remove('ativa'));
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('ativo'));
     document.getElementById('pag-'+p).classList.add('ativa');
