@@ -314,8 +314,8 @@
 
 <!-- FIREBASE -->
 <script type="module">
-import { initializeApp }                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp }                                              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app = initializeApp({
     apiKey:            "AIzaSyCbZScsqb9Ml1UyuDCSrbQf8gyIQDg1_Q",
@@ -333,87 +333,102 @@ function setSyncStatus(msg, cls) {
 }
 
 let saveTimers = {};
-let pendingSave = {}; // guarda se há salvamento pendente enquanto outro está em curso
-let saving = {};      // flag de salvamento em andamento
 
-async function executarSalvamento(prefixo) {
-    if (saving[prefixo]) {
-        pendingSave[prefixo] = true; // marca para salvar novamente após terminar
-        return;
-    }
-    saving[prefixo] = true;
-    try {
-        const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
-        const ano = parseInt(document.getElementById(prefixo+'-ano').value);
-        const mes = parseInt(document.getElementById(prefixo+'-mes').value);
-        const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
-        const selectVals = {}, disabledIds = [];
-        document.querySelectorAll('select[id^="sel_"]').forEach(el => {
-            if (el.id.endsWith('_'+prefixo)) {
-                selectVals[el.id] = el.value;
-                if (el.disabled) disabledIds.push(el.id);
-            }
-        });
-        await setDoc(doc(db,'controle',key), {
-            selectVals, disabledIds,
-            obsData: Object.assign({}, cfg.obsData),
-            feriadoSet: Object.assign({}, cfg.feriadoSet)
-        });
-        setSyncStatus('✔ Salvo', 'salvo');
-        setTimeout(() => setSyncStatus('',''), 3000);
-    } catch(e) {
-        setSyncStatus('✖ Erro ao salvar','erro');
-        console.error(e);
-    } finally {
-        saving[prefixo] = false;
-        // Se houve alteração durante o salvamento, salva novamente
-        if (pendingSave[prefixo]) {
-            pendingSave[prefixo] = false;
-            executarSalvamento(prefixo);
-        }
-    }
-}
+// Salva APENAS os campos alterados (merge:true) — nunca sobrescreve o documento inteiro.
+// Isso é o que resolve a perda de dados entre usuários simultâneos.
 
 window._salvarFirebase = function(prefixo) {
     clearTimeout(saveTimers[prefixo]);
     setSyncStatus('💾 Salvando...', 'salvando');
-    saveTimers[prefixo] = setTimeout(() => executarSalvamento(prefixo), 600);
+    saveTimers[prefixo] = setTimeout(async () => {
+        try {
+            const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+            const ano = parseInt(document.getElementById(prefixo+'-ano').value);
+            const mes = parseInt(document.getElementById(prefixo+'-mes').value);
+            const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
+
+            // Patch com dot-notation: cada select, cada obs e cada feriado é
+            // um campo independente. Isso garante que setDoc com merge:true
+            // NUNCA sobrescreva alterações de outro usuário que salvou em paralelo.
+            const patch = {};
+
+            document.querySelectorAll('select[id^="sel_"]').forEach(el => {
+                if (el.id.endsWith('_'+prefixo)) {
+                    patch['selectVals.'+el.id] = el.value;
+                    patch['disabledMap.'+el.id] = !!el.disabled;
+                }
+            });
+            Object.entries(cfg.obsData).forEach(([k,v]) => {
+                patch['obsData.'+k] = v;
+            });
+            Object.entries(cfg.feriadoSet).forEach(([k,v]) => {
+                patch['feriadoSet.'+k] = v;
+            });
+
+            await setDoc(doc(db,'controle',key), patch, { merge: true });
+            setSyncStatus('✔ Salvo', 'salvo');
+            setTimeout(() => setSyncStatus('',''), 3000);
+        } catch(e) { setSyncStatus('✖ Erro ao salvar','erro'); console.error(e); }
+    }, 500);
 };
 
-window._carregarFirebase = async function(prefixo, ano, mes) {
+const activeListeners = {}; // guarda os unsubscribers dos onSnapshot ativos
+
+window._carregarFirebase = function(prefixo, ano, mes) {
     setSyncStatus('⏳ Carregando...', 'salvando');
-    try {
-        const key  = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
-        const snap = await getDoc(doc(db,'controle',key));
+
+    // Cancela listener anterior do mesmo prefixo (troca de mês)
+    if (activeListeners[prefixo]) {
+        activeListeners[prefixo]();
+        delete activeListeners[prefixo];
+    }
+
+    const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
+    const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+
+    // onSnapshot: escuta em tempo real — qualquer alteração de outro usuário
+    // atualiza a tela automaticamente, sem precisar recarregar
+    activeListeners[prefixo] = onSnapshot(doc(db,'controle',key), (snap) => {
         if (!snap.exists()) { setSyncStatus('',''); return; }
         const data = snap.data();
-        const cfg  = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
 
+        // Restaura obsData e feriadoSet
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
+        // Re-renderiza o mês com feriadoSet correto
         window._renderizarMesExterno(prefixo);
 
         setTimeout(() => {
+            // Aplica selectVals
             if (data.selectVals) {
                 Object.entries(data.selectVals).forEach(([id, val]) => {
                     const el = document.getElementById(id);
-                    if (el && !el.disabled) el.value = val;
+                    if (el) el.value = val;
                 });
             }
-            if (data.disabledIds) {
+            // Aplica disabled via disabledMap (novo formato) ou disabledIds (legado)
+            if (data.disabledMap) {
+                Object.entries(data.disabledMap).forEach(([id, isDisabled]) => {
+                    const el = document.getElementById(id);
+                    if (el) { el.disabled = isDisabled; if (isDisabled) el.style.background = '#ffcdd2'; }
+                });
+            } else if (data.disabledIds) {
                 data.disabledIds.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
                 });
             }
             window._reaplicarEstados(prefixo);
-            setSyncStatus('✔ Carregado','salvo');
-            setTimeout(() => setSyncStatus('',''), 3000);
+            setSyncStatus('✔ Sincronizado','salvo');
+            setTimeout(() => setSyncStatus('',''), 2000);
         }, 300);
-    } catch(e) { setSyncStatus('✖ Erro ao carregar','erro'); console.error(e); }
+    }, (e) => {
+        setSyncStatus('✖ Erro ao carregar','erro');
+        console.error(e);
+    });
 };
 
 window._reaplicarEstados = function(prefixo) {
@@ -633,6 +648,7 @@ function atualizarDashboard(cfg) {
     const hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
     let pen=0; const parado={};
     conferentes.forEach(c => parado[c.key]=0);
+
     for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
         const dl=new Date(ano,mes,d);
         if (dl>ontem) continue;
@@ -640,19 +656,36 @@ function atualizarDashboard(cfg) {
         if (pulaFimDeSemana) { if (ds===0||ds===6) continue; }
         else { if (ds===0) continue; }
         if (feriadoSet[d+'_'+mes+'_'+ano]) continue;
+
         caixas.forEach(c => {
             const idBase=d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
-            let ap=false;
-            conferentes.forEach(conf => {
-                const sel=document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
-                if (!sel) { parado[conf.key]++; return; }
-                if (sel.value==='FER') return;
-                if (sel.value==='PEN') ap=true;
-                if (sel.value==='AGU') parado[conf.key]++;
+
+            // Verifica se o caixa tem algum select no DOM (se não tiver, é feriado geral — ignora)
+            const primeiroSel = document.getElementById('sel_'+conferentes[0].key+'_'+idBase+'_'+p);
+            if (!primeiroSel) return; // feriado geral — célula não tem selects
+
+            // Verifica se algum conferente marcou PEN
+            const temPendente = conferentes.some(conf => {
+                const sel = document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+                return sel && sel.value === 'PEN';
             });
-            if (ap) pen++;
+
+            if (temPendente) {
+                // Conta apenas como pendente — NÃO entra nos contadores de parado
+                pen++;
+                return;
+            }
+
+            // Sem pendência: conta AGU por conferente (ignorando FER)
+            conferentes.forEach(conf => {
+                const sel = document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+                if (!sel) return;
+                if (sel.value === 'FER') return; // feriado individual — não conta
+                if (sel.value === 'AGU') parado[conf.key]++;
+            });
         });
     }
+
     document.getElementById(p+'-count-pendentes').innerText=pen;
     conferentes.forEach(c => { document.getElementById(p+'-count-'+c.key).innerText=parado[c.key]; });
 }
@@ -684,18 +717,28 @@ function abrirRelatorio(p, tipo) {
 
         cfg.caixas.forEach(c => {
             const idBase=d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano;
+
+            // Se não tem select no DOM, é feriado geral — ignora
+            const primeiroSel = document.getElementById('sel_'+cfg.conferentes[0].key+'_'+idBase+'_'+p);
+            if (!primeiroSel) return;
+
             let incluir = false;
             let statusDesc = '';
 
+            // Verifica se tem pendência
+            const temPen = cfg.conferentes.some(conf => {
+                const sel=document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
+                return sel && sel.value==='PEN';
+            });
+
             if (tipo === 'pendente') {
-                const temPen = cfg.conferentes.some(conf => {
-                    const sel=document.getElementById('sel_'+conf.key+'_'+idBase+'_'+p);
-                    return sel && sel.value==='PEN';
-                });
                 if (temPen) { incluir=true; statusDesc='Pendenciado'; }
             } else {
-                const sel=document.getElementById('sel_'+tipo+'_'+idBase+'_'+p);
-                if (sel && sel.value==='AGU') { incluir=true; statusDesc='Aguardando'; }
+                // Caixa pendenciado não aparece nos relatórios de "parado"
+                if (!temPen) {
+                    const sel=document.getElementById('sel_'+tipo+'_'+idBase+'_'+p);
+                    if (sel && sel.value==='AGU') { incluir=true; statusDesc='Aguardando'; }
+                }
             }
 
             if (incluir) {
@@ -765,6 +808,7 @@ function trocarMes(p) {
     renderizarMes(cfg);
     const ano=parseInt(document.getElementById(p+'-ano').value);
     const mes=parseInt(document.getElementById(p+'-mes').value);
+    // _carregarFirebase já cancela o listener anterior internamente
     if (window._carregarFirebase) window._carregarFirebase(p, ano, mes);
 }
 
