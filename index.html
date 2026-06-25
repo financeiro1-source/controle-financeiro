@@ -333,9 +333,7 @@ function setSyncStatus(msg, cls) {
 }
 
 let saveTimers = {};
-
-// Salva APENAS os campos alterados (merge:true) — nunca sobrescreve o documento inteiro.
-// Isso é o que resolve a perda de dados entre usuários simultâneos.
+const ignorarSnapshot = {}; // flag para evitar loop: salvar → snapshot → salvar
 
 window._salvarFirebase = function(prefixo) {
     clearTimeout(saveTimers[prefixo]);
@@ -347,37 +345,34 @@ window._salvarFirebase = function(prefixo) {
             const mes = parseInt(document.getElementById(prefixo+'-mes').value);
             const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
 
-            // Patch com dot-notation: cada select, cada obs e cada feriado é
-            // um campo independente. Isso garante que setDoc com merge:true
-            // NUNCA sobrescreva alterações de outro usuário que salvou em paralelo.
             const patch = {};
-
             document.querySelectorAll('select[id^="sel_"]').forEach(el => {
                 if (el.id.endsWith('_'+prefixo)) {
                     patch['selectVals.'+el.id] = el.value;
                     patch['disabledMap.'+el.id] = !!el.disabled;
                 }
             });
-            Object.entries(cfg.obsData).forEach(([k,v]) => {
-                patch['obsData.'+k] = v;
-            });
-            Object.entries(cfg.feriadoSet).forEach(([k,v]) => {
-                patch['feriadoSet.'+k] = v;
-            });
+            Object.entries(cfg.obsData).forEach(([k,v]) => { patch['obsData.'+k] = v; });
+            Object.entries(cfg.feriadoSet).forEach(([k,v]) => { patch['feriadoSet.'+k] = v; });
 
+            // Sinaliza que o próximo snapshot é do próprio usuário — não re-renderiza
+            ignorarSnapshot[prefixo] = true;
             await setDoc(doc(db,'controle',key), patch, { merge: true });
             setSyncStatus('✔ Salvo', 'salvo');
             setTimeout(() => setSyncStatus('',''), 3000);
-        } catch(e) { setSyncStatus('✖ Erro ao salvar','erro'); console.error(e); }
+        } catch(e) {
+            ignorarSnapshot[prefixo] = false;
+            setSyncStatus('✖ Erro ao salvar','erro');
+            console.error(e);
+        }
     }, 500);
 };
 
-const activeListeners = {}; // guarda os unsubscribers dos onSnapshot ativos
+const activeListeners = {};
 
 window._carregarFirebase = function(prefixo, ano, mes) {
     setSyncStatus('⏳ Carregando...', 'salvando');
 
-    // Cancela listener anterior do mesmo prefixo (troca de mês)
     if (activeListeners[prefixo]) {
         activeListeners[prefixo]();
         delete activeListeners[prefixo];
@@ -385,50 +380,68 @@ window._carregarFirebase = function(prefixo, ano, mes) {
 
     const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
     const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+    let primeiraVez = true;
 
-    // onSnapshot: escuta em tempo real — qualquer alteração de outro usuário
-    // atualiza a tela automaticamente, sem precisar recarregar
     activeListeners[prefixo] = onSnapshot(doc(db,'controle',key), (snap) => {
         if (!snap.exists()) { setSyncStatus('',''); return; }
-        const data = snap.data();
 
-        // Restaura obsData e feriadoSet
+        // Se é o echo do próprio save, ignora (evita loop e piscar)
+        if (!primeiraVez && ignorarSnapshot[prefixo]) {
+            ignorarSnapshot[prefixo] = false;
+            return;
+        }
+
+        const data = snap.data();
+        const ehPrimeiraVez = primeiraVez;
+        primeiraVez = false;
+
+        // Atualiza obsData e feriadoSet em memória
         Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
-        // Re-renderiza o mês com feriadoSet correto
-        window._renderizarMesExterno(prefixo);
-
-        setTimeout(() => {
-            // Aplica selectVals
-            if (data.selectVals) {
-                Object.entries(data.selectVals).forEach(([id, val]) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = val;
-                });
-            }
-            // Aplica disabled via disabledMap (novo formato) ou disabledIds (legado)
-            if (data.disabledMap) {
-                Object.entries(data.disabledMap).forEach(([id, isDisabled]) => {
-                    const el = document.getElementById(id);
-                    if (el) { el.disabled = isDisabled; if (isDisabled) el.style.background = '#ffcdd2'; }
-                });
-            } else if (data.disabledIds) {
-                data.disabledIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
-                });
-            }
-            window._reaplicarEstados(prefixo);
-            setSyncStatus('✔ Sincronizado','salvo');
+        if (ehPrimeiraVez) {
+            // Primeira carga: re-renderiza o mês inteiro (necessário para feriados gerais)
+            window._renderizarMesExterno(prefixo);
+            setTimeout(() => {
+                aplicarDados(data, prefixo, cfg);
+                setSyncStatus('✔ Carregado','salvo');
+                setTimeout(() => setSyncStatus('',''), 2000);
+            }, 300);
+        } else {
+            // Atualização de outro usuário: aplica só os valores, sem re-renderizar
+            aplicarDados(data, prefixo, cfg);
+            setSyncStatus('🔄 Atualizado','salvo');
             setTimeout(() => setSyncStatus('',''), 2000);
-        }, 300);
+        }
     }, (e) => {
         setSyncStatus('✖ Erro ao carregar','erro');
         console.error(e);
     });
+};
+
+// Aplica selectVals e disabled no DOM sem re-renderizar nem disparar saves
+function aplicarDados(data, prefixo, cfg) {
+    if (data.selectVals) {
+        Object.entries(data.selectVals).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        });
+    }
+    if (data.disabledMap) {
+        Object.entries(data.disabledMap).forEach(([id, isDisabled]) => {
+            const el = document.getElementById(id);
+            if (el) { el.disabled = isDisabled; el.style.background = isDisabled ? '#ffcdd2' : ''; }
+        });
+    } else if (data.disabledIds) {
+        data.disabledIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
+        });
+    }
+    // Reaplicar apenas cores e obs (sem chamar _salvarFirebase)
+    window._reaplicarEstados(prefixo);
 };
 
 window._reaplicarEstados = function(prefixo) {
@@ -437,7 +450,8 @@ window._reaplicarEstados = function(prefixo) {
     const mes = parseInt(document.getElementById(prefixo+'-mes').value);
     for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
         cfg.caixas.forEach(c => {
-            window.atualizar(d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano, prefixo);
+            // semSalvar=true: só atualiza cores, não dispara save
+            window.atualizar(d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano, prefixo, true);
         });
     }
     Object.entries(cfg.obsData).forEach(([idBase, texto]) => {
@@ -455,7 +469,7 @@ window._reaplicarEstados = function(prefixo) {
 // Salva imediatamente (sem debounce) — usado ao trocar aba ou fechar página
 window._salvarImediato = function(prefixo) {
     clearTimeout(saveTimers[prefixo]);
-    executarSalvamento(prefixo);
+    if (window._salvarFirebase) window._salvarFirebase(prefixo);
 };
 
 // Salva tudo ao fechar/recarregar a página
@@ -562,7 +576,7 @@ function renderizarMes(cfg) {
 }
 
 /* ── ATUALIZAR CÉLULA ── */
-window.atualizar = function(idBase, p) {
+window.atualizar = function(idBase, p, semSalvar) {
     const cfg = getCfg(p);
     const td  = document.getElementById('td_'+idBase+'_'+p);
     if (!td) return;
@@ -588,7 +602,6 @@ window.atualizar = function(idBase, p) {
             if (sel.value==='FER') sel.value='AGU';
         }
 
-        // Verde por linha quando conferido
         if (row) {
             if (sel.value==='CON') row.classList.add('row-conferido');
             else row.classList.remove('row-conferido');
@@ -611,7 +624,8 @@ window.atualizar = function(idBase, p) {
     else if (algumPendente) td.classList.add('bg-pendente');
 
     atualizarDashboard(cfg);
-    if (window._salvarFirebase) window._salvarFirebase(p);
+    // Só salva se for ação do usuário (não quando está aplicando dados do Firebase)
+    if (!semSalvar && window._salvarFirebase) window._salvarFirebase(p);
 };
 
 /* ── FERIADO GERAL ── */
