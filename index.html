@@ -314,8 +314,8 @@
 
 <!-- FIREBASE -->
 <script type="module">
-import { initializeApp }                                              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc }      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app = initializeApp({
     apiKey:            "AIzaSyCbZScsqb9Ml1UyuDCSrbQf8gyIQDg1_Q",
@@ -332,125 +332,110 @@ function setSyncStatus(msg, cls) {
     el.textContent = msg; el.className = 'sync-bar ' + cls;
 }
 
+// ── SALVAR ──────────────────────────────────────────────────────────────────
+// Usa merge:true com dot-notation por campo individual.
+// Isso garante que dois usuários salvando ao mesmo tempo NÃO apaguem dados um do outro.
 let saveTimers = {};
-const ignorarSnapshot = {}; // flag para evitar loop: salvar → snapshot → salvar
 
 window._salvarFirebase = function(prefixo) {
     clearTimeout(saveTimers[prefixo]);
     setSyncStatus('💾 Salvando...', 'salvando');
     saveTimers[prefixo] = setTimeout(async () => {
         try {
-            const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+            const cfg = prefixo === 'cx' ? window.cfgCaixa
+                      : prefixo === 'bc' ? window.cfgConciliacao
+                      : window.cfgTerceirizadas;
             const ano = parseInt(document.getElementById(prefixo+'-ano').value);
             const mes = parseInt(document.getElementById(prefixo+'-mes').value);
             const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
 
+            // Monta patch com dot-notation — cada campo é independente
             const patch = {};
             document.querySelectorAll('select[id^="sel_"]').forEach(el => {
-                if (el.id.endsWith('_'+prefixo)) {
-                    patch['selectVals.'+el.id] = el.value;
-                    patch['disabledMap.'+el.id] = !!el.disabled;
+                // Garante que pertence ao prefixo correto verificando o sufixo exato
+                const sufixo = '_' + prefixo;
+                if (el.id.slice(-sufixo.length) === sufixo) {
+                    patch['selectVals.' + el.id] = el.value;
+                    patch['disabledMap.' + el.id] = !!el.disabled;
                 }
             });
-            Object.entries(cfg.obsData).forEach(([k,v]) => { patch['obsData.'+k] = v; });
-            Object.entries(cfg.feriadoSet).forEach(([k,v]) => { patch['feriadoSet.'+k] = v; });
+            Object.entries(cfg.obsData).forEach(([k,v])    => { patch['obsData.'    + k] = v; });
+            Object.entries(cfg.feriadoSet).forEach(([k,v]) => { patch['feriadoSet.' + k] = v; });
 
-            // Sinaliza que o próximo snapshot é do próprio usuário — não re-renderiza
-            ignorarSnapshot[prefixo] = true;
-            await setDoc(doc(db,'controle',key), patch, { merge: true });
+            await setDoc(doc(db, 'controle', key), patch, { merge: true });
             setSyncStatus('✔ Salvo', 'salvo');
-            setTimeout(() => setSyncStatus('',''), 3000);
+            setTimeout(() => setSyncStatus('', ''), 3000);
         } catch(e) {
-            ignorarSnapshot[prefixo] = false;
-            setSyncStatus('✖ Erro ao salvar','erro');
-            console.error(e);
+            setSyncStatus('✖ Erro ao salvar', 'erro');
+            console.error('Erro _salvarFirebase:', e);
         }
-    }, 500);
+    }, 600);
 };
 
-const activeListeners = {};
-
-window._carregarFirebase = function(prefixo, ano, mes) {
+// ── CARREGAR ─────────────────────────────────────────────────────────────────
+window._carregarFirebase = async function(prefixo, ano, mes) {
     setSyncStatus('⏳ Carregando...', 'salvando');
-
-    if (activeListeners[prefixo]) {
-        activeListeners[prefixo]();
-        delete activeListeners[prefixo];
-    }
-
-    const key = prefixo+'_'+ano+'_'+String(mes).padStart(2,'0');
-    const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
-    let primeiraVez = true;
-
-    activeListeners[prefixo] = onSnapshot(doc(db,'controle',key), (snap) => {
-        if (!snap.exists()) { setSyncStatus('',''); return; }
-
-        // Se é o echo do próprio save, ignora (evita loop e piscar)
-        if (!primeiraVez && ignorarSnapshot[prefixo]) {
-            ignorarSnapshot[prefixo] = false;
-            return;
-        }
+    try {
+        const key  = prefixo + '_' + ano + '_' + String(mes).padStart(2, '0');
+        const snap = await getDoc(doc(db, 'controle', key));
+        if (!snap.exists()) { setSyncStatus('', ''); return; }
 
         const data = snap.data();
-        const ehPrimeiraVez = primeiraVez;
-        primeiraVez = false;
+        const cfg  = prefixo === 'cx' ? window.cfgCaixa
+                   : prefixo === 'bc' ? window.cfgConciliacao
+                   : window.cfgTerceirizadas;
 
-        // Atualiza obsData e feriadoSet em memória
-        Object.keys(cfg.obsData).forEach(k => delete cfg.obsData[k]);
+        // Restaura obsData e feriadoSet em memória
+        Object.keys(cfg.obsData).forEach(k    => delete cfg.obsData[k]);
         Object.keys(cfg.feriadoSet).forEach(k => delete cfg.feriadoSet[k]);
         if (data.obsData)    Object.assign(cfg.obsData,    data.obsData);
         if (data.feriadoSet) Object.assign(cfg.feriadoSet, data.feriadoSet);
 
-        if (ehPrimeiraVez) {
-            // Primeira carga: re-renderiza o mês inteiro (necessário para feriados gerais)
-            window._renderizarMesExterno(prefixo);
-            setTimeout(() => {
-                aplicarDados(data, prefixo, cfg);
-                setSyncStatus('✔ Carregado','salvo');
-                setTimeout(() => setSyncStatus('',''), 2000);
-            }, 300);
-        } else {
-            // Atualização de outro usuário: aplica só os valores, sem re-renderizar
-            aplicarDados(data, prefixo, cfg);
-            setSyncStatus('🔄 Atualizado','salvo');
-            setTimeout(() => setSyncStatus('',''), 2000);
-        }
-    }, (e) => {
-        setSyncStatus('✖ Erro ao carregar','erro');
-        console.error(e);
-    });
+        // Re-renderiza com feriadoSet já preenchido (restaura feriados gerais)
+        window._renderizarMesExterno(prefixo);
+
+        // Aguarda DOM e aplica valores
+        setTimeout(() => {
+            if (data.selectVals) {
+                Object.entries(data.selectVals).forEach(([id, val]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val;
+                });
+            }
+            if (data.disabledMap) {
+                Object.entries(data.disabledMap).forEach(([id, isDisabled]) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.disabled = isDisabled;
+                        el.style.background = isDisabled ? '#ffcdd2' : '';
+                    }
+                });
+            } else if (data.disabledIds) {
+                data.disabledIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
+                });
+            }
+            // Reaplicar cores sem disparar salvamento
+            window._reaplicarEstados(prefixo);
+            setSyncStatus('✔ Carregado', 'salvo');
+            setTimeout(() => setSyncStatus('', ''), 3000);
+        }, 300);
+    } catch(e) {
+        setSyncStatus('✖ Erro ao carregar', 'erro');
+        console.error('Erro _carregarFirebase:', e);
+    }
 };
 
-// Aplica selectVals e disabled no DOM sem re-renderizar nem disparar saves
-function aplicarDados(data, prefixo, cfg) {
-    if (data.selectVals) {
-        Object.entries(data.selectVals).forEach(([id, val]) => {
-            const el = document.getElementById(id);
-            if (el) el.value = val;
-        });
-    }
-    if (data.disabledMap) {
-        Object.entries(data.disabledMap).forEach(([id, isDisabled]) => {
-            const el = document.getElementById(id);
-            if (el) { el.disabled = isDisabled; el.style.background = isDisabled ? '#ffcdd2' : ''; }
-        });
-    } else if (data.disabledIds) {
-        data.disabledIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) { el.disabled = true; el.style.background = '#ffcdd2'; }
-        });
-    }
-    // Reaplicar apenas cores e obs (sem chamar _salvarFirebase)
-    window._reaplicarEstados(prefixo);
-};
-
+// ── REAPLICAR ESTADOS (sem salvar) ───────────────────────────────────────────
 window._reaplicarEstados = function(prefixo) {
-    const cfg = prefixo === 'cx' ? window.cfgCaixa : prefixo === 'bc' ? window.cfgConciliacao : window.cfgTerceirizadas;
+    const cfg = prefixo === 'cx' ? window.cfgCaixa
+              : prefixo === 'bc' ? window.cfgConciliacao
+              : window.cfgTerceirizadas;
     const ano = parseInt(document.getElementById(prefixo+'-ano').value);
     const mes = parseInt(document.getElementById(prefixo+'-mes').value);
-    for (let d=1; d<=new Date(ano,mes+1,0).getDate(); d++) {
+    for (let d = 1; d <= new Date(ano, mes+1, 0).getDate(); d++) {
         cfg.caixas.forEach(c => {
-            // semSalvar=true: só atualiza cores, não dispara save
             window.atualizar(d+'_'+c.replace(/ /g,'_')+'_'+mes+'_'+ano, prefixo, true);
         });
     }
@@ -465,19 +450,6 @@ window._reaplicarEstados = function(prefixo) {
         tt.innerText = texto;
     });
 };
-
-// Salva imediatamente (sem debounce) — usado ao trocar aba ou fechar página
-window._salvarImediato = function(prefixo) {
-    clearTimeout(saveTimers[prefixo]);
-    if (window._salvarFirebase) window._salvarFirebase(prefixo);
-};
-
-// Salva tudo ao fechar/recarregar a página
-window.addEventListener('beforeunload', () => {
-    ['cx','bc','tc'].forEach(p => {
-        if (window._salvarImediato) window._salvarImediato(p);
-    });
-});
 
 window._firebaseReady = true;
 </script>
